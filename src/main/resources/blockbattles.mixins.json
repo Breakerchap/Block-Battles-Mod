@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "com.remy.blockbattles.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"BlockBattlesMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
