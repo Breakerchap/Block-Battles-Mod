@@ -1,6 +1,6 @@
 package com.remy.blockbattles.game.blocks;
 
-public class BattleBlockData {
+public class BattleBlock {
   final BattleBlockIDs id;
   final String displayName;
   final String abilityDescription;
@@ -11,7 +11,7 @@ public class BattleBlockData {
   final int defence;
   final int defenceDamage;
 
-  public BattleBlockData(BattleBlockIDs id, String displayName, String abilityDescription,
+  public BattleBlock(BattleBlockIDs id, String displayName, String abilityDescription,
       Classification classification,
       int damage, int healing, int defence, int defenceDamage) {
     this.id = id;
@@ -22,5 +22,10 @@ public class BattleBlockData {
     this.healing = healing;
     this.defence = defence;
     this.defenceDamage = defenceDamage;
+  }
+
+  @Override
+  public String toString() {
+    return displayName;
   }
 }
