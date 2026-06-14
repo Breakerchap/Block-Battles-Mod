@@ -27,21 +27,23 @@ public class ManageDeck {
     return hand;
   }
 
-  public static void main(String args[]) {
-    TeamState teamState = new TeamState();
-    ManageDeck deckManager = new ManageDeck();
-
-    deckManager.dealCards(
-        teamState.redTeam.deck,
-        teamState.redTeam.deck,
-        teamState.redTeam.hand);
-
-    deckManager.dealCards(
-        teamState.blueTeam.deck,
-        teamState.blueTeam.deck,
-        teamState.blueTeam.hand);
-
-    System.out.println(teamState.redTeam.hand);
-    System.out.println(teamState.blueTeam.hand);
-  }
+  /*
+   * public static void main(String args[]) {
+   * TeamState teamState = new TeamState();
+   * ManageDeck deckManager = new ManageDeck();
+   * 
+   * deckManager.dealCards(
+   * teamState.redTeam.deck,
+   * teamState.redTeam.deck,
+   * teamState.redTeam.hand);
+   * 
+   * deckManager.dealCards(
+   * teamState.blueTeam.deck,
+   * teamState.blueTeam.deck,
+   * teamState.blueTeam.hand);
+   * 
+   * System.out.println(teamState.redTeam.hand);
+   * System.out.println(teamState.blueTeam.hand);
+   * }
+   */
 }

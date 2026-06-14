@@ -1,15 +1,15 @@
 package com.remy.blockbattles.game.blocks;
 
 public class BattleBlock {
-  final BattleBlockIDs id;
-  final String displayName;
-  final String abilityDescription;
-  final Classification classification;
+  final public BattleBlockIDs id;
+  final public String displayName;
+  final public String abilityDescription;
+  final public Classification classification;
 
-  final int damage;
-  final int healing;
-  final int defence;
-  final int defenceDamage;
+  final public int damage;
+  final public int healing;
+  final public int defence;
+  final public int defenceDamage;
 
   public BattleBlock(BattleBlockIDs id, String displayName, String abilityDescription,
       Classification classification,
