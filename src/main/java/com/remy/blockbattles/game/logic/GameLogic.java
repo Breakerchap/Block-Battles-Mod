@@ -1,6 +1,7 @@
 package com.remy.blockbattles.game.logic;
 
 import com.remy.blockbattles.game.blocks.BattleBlock;
+import com.remy.blockbattles.game.blocks.CreateBlocks;
 
 public class GameLogic {
   private final BattleState battleState;
@@ -18,11 +19,17 @@ public class GameLogic {
     this.battleState = battleState;
   }
 
-  public void onPlaceBattleBlock(BattleBlock block) {
-    pendingDamage += block.damage;
-    pendingHealing += block.healing;
-    pendingShieldGain += block.defence;
-    pendingShieldDamage += block.defenceDamage;
+  public boolean onPlaceBattleBlock(String blockId) {
+    return CreateBlocks.findByMinecraftId(blockId)
+        .map(this::onPlaceBattleBlock)
+        .orElse(false);
+  }
+
+  public boolean onPlaceBattleBlock(BattleBlock battleBlock) {
+    queueBlockEffects(battleBlock);
+
+    endTurn();
+    return true;
   }
 
   public BattleState getBattleState() {
@@ -37,6 +44,13 @@ public class GameLogic {
     return battleState.getWaitingTeam();
   }
 
+  private void queueBlockEffects(BattleBlock battleBlock) {
+    pendingDamage += battleBlock.damage;
+    pendingHealing += battleBlock.healing;
+    pendingShieldGain += battleBlock.defence;
+    pendingShieldDamage += battleBlock.defenceDamage;
+  }
+
   public void endTurn() {
     BattleTeam currentTeam = getCurrentTeam();
     BattleTeam enemyTeam = getEnemyTeam();
@@ -49,6 +63,11 @@ public class GameLogic {
 
     clearPendingEffects();
     battleState.advanceTurn();
+  }
+
+  public void resetBattle() {
+    clearPendingEffects();
+    battleState.resetForNewBattle();
   }
 
   private void clearPendingEffects() {

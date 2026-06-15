@@ -42,7 +42,7 @@ public class BattleTeam {
     return Collections.unmodifiableList(startingDeck);
   }
 
-  public ArrayList<BattleBlock> getDrawPile() {
+  public List<BattleBlock> getDrawPile() {
     return drawPile;
   }
 
@@ -50,7 +50,7 @@ public class BattleTeam {
     return drawPile.size();
   }
 
-  public ArrayList<BattleBlock> getHand() {
+  public List<BattleBlock> getHand() {
     return hand;
   }
 
@@ -77,11 +77,11 @@ public class BattleTeam {
   }
 
   public void takeHealthDamage(int amount) {
-    health -= amount;
+    health -= Math.max(0, amount - shield);
   }
 
   public void gainShield(int amount) {
-    shield += amount;
+    shield = Math.max(0, shield + amount);
   }
 
   public void loseShield(int amount) {

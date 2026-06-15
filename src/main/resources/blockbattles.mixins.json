@@ -3,7 +3,8 @@
 	"package": "com.remy.blockbattles.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
-		"BlockBattlesMixin"
+		"BlockBattlesMixin",
+		"PlaceBlockMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -36,6 +36,15 @@ public class BlockBattlesMod implements ModInitializer {
 
   private static void registerCommand(CommandDispatcher<CommandSourceStack> dispatcher, String commandName) {
     dispatcher.register(Commands.literal(commandName)
+        .then(Commands.literal("reset")
+            .executes(context -> {
+              GAME_LOGIC.resetBattle();
+              BattleScoreboards.updateScoreboard(context.getSource().getServer(), BATTLE_STATE);
+              context.getSource().sendSuccess(
+                  () -> Component.literal("Block Battles has been reset to its default state."),
+                  false);
+              return 1;
+            }))
         .then(Commands.literal("showScoreboards")
             .executes(context -> {
               BattleScoreboards.updateScoreboard(context.getSource().getServer(), BATTLE_STATE);
