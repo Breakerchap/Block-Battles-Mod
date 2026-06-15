@@ -1,54 +1,60 @@
 package com.remy.blockbattles.game.logic;
 
 import com.remy.blockbattles.game.blocks.BattleBlock;
-import com.remy.blockbattles.game.logic.TeamData.Team;
 
 public class GameLogic {
-  private final TeamState teamState;
+  private final BattleState battleState;
 
-  int damageToDeal;
-  int healingToHeal;
-  int defenceToAdd;
-  int defenceDamageToDeal;
+  private int pendingDamage;
+  private int pendingHealing;
+  private int pendingShieldGain;
+  private int pendingShieldDamage;
 
-  public GameLogic(TeamState teamState) {
-    this.teamState = teamState;
+  public GameLogic() {
+    this(BattleState.shared());
   }
 
-  void onPlaceBattleBlock(BattleBlock block) {
-    damageToDeal += block.damage;
-    healingToHeal += block.healing;
-    defenceToAdd += block.defence;
-    defenceDamageToDeal += block.defenceDamage;
+  public GameLogic(BattleState battleState) {
+    this.battleState = battleState;
   }
 
-  private TeamData getCurrentTeam() {
-    return teamState.currentTurn == Team.RED ? teamState.redTeam : teamState.blueTeam;
+  public void onPlaceBattleBlock(BattleBlock block) {
+    pendingDamage += block.damage;
+    pendingHealing += block.healing;
+    pendingShieldGain += block.defence;
+    pendingShieldDamage += block.defenceDamage;
   }
 
-  private TeamData getEnemyTeam() {
-    return teamState.currentTurn == Team.RED ? teamState.blueTeam : teamState.redTeam;
+  public BattleState getBattleState() {
+    return battleState;
   }
 
-  void endTurn() {
-    TeamData currentTeam = getCurrentTeam();
-    TeamData enemyTeam = getEnemyTeam();
+  public BattleTeam getCurrentTeam() {
+    return battleState.getActiveTeam();
+  }
 
-    currentTeam.health += healingToHeal;
-    currentTeam.shield += defenceToAdd;
+  public BattleTeam getEnemyTeam() {
+    return battleState.getWaitingTeam();
+  }
 
-    enemyTeam.health -= damageToDeal;
-    enemyTeam.shield -= defenceDamageToDeal;
+  public void endTurn() {
+    BattleTeam currentTeam = getCurrentTeam();
+    BattleTeam enemyTeam = getEnemyTeam();
 
-    if (enemyTeam.shield < 0) {
-      enemyTeam.shield = 0;
-    }
+    currentTeam.heal(pendingHealing);
+    currentTeam.gainShield(pendingShieldGain);
 
-    damageToDeal = 0;
-    healingToHeal = 0;
-    defenceToAdd = 0;
-    defenceDamageToDeal = 0;
+    enemyTeam.takeHealthDamage(pendingDamage);
+    enemyTeam.loseShield(pendingShieldDamage);
 
-    teamState.currentTurn = teamState.currentTurn == Team.RED ? Team.BLUE : Team.RED;
+    clearPendingEffects();
+    battleState.advanceTurn();
+  }
+
+  private void clearPendingEffects() {
+    pendingDamage = 0;
+    pendingHealing = 0;
+    pendingShieldGain = 0;
+    pendingShieldDamage = 0;
   }
 }
