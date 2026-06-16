@@ -21,8 +21,8 @@ public class CreateBlocks {
         description,
         Classification.NATURAL,
         damage,
-        defence,
         healing,
+        defence,
         defenceDamage);
   }
 

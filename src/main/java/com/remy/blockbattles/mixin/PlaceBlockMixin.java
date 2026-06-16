@@ -1,11 +1,10 @@
 package com.remy.blockbattles.mixin;
 
 import com.remy.blockbattles.BlockBattlesMod;
-import com.remy.blockbattles.game.blocks.CreateBlocks;
 import com.remy.blockbattles.game.gui.BattleScoreboards;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -23,6 +22,7 @@ public class PlaceBlockMixin {
       BlockPlaceContext context,
       BlockState state,
       CallbackInfoReturnable<Boolean> cir) {
+
     if (!cir.getReturnValue()) {
       return;
     }
@@ -31,11 +31,20 @@ public class PlaceBlockMixin {
       return;
     }
 
-    Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+    BlockPos pos = context.getClickedPos();
 
-    CreateBlocks.findByMinecraftId(blockId.toString()).ifPresent(battleBlock -> {
-      BlockBattlesMod.GAME_LOGIC.onPlaceBattleBlock(battleBlock);
-      BattleScoreboards.updateScoreboard(serverLevel.getServer(), BlockBattlesMod.BATTLE_STATE);
-    });
+    var blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+    String blockIdString = blockId.toString();
+
+    boolean handled = BlockBattlesMod.GAME_LOGIC.onPlaceBattleBlock(
+        blockIdString,
+        serverLevel,
+        pos);
+
+    if (handled) {
+      BattleScoreboards.updateScoreboard(
+          serverLevel.getServer(),
+          BlockBattlesMod.BATTLE_STATE);
+    }
   }
 }

@@ -1,7 +1,12 @@
 package com.remy.blockbattles.game.logic;
 
 import com.remy.blockbattles.game.blocks.BattleBlock;
+import com.remy.blockbattles.game.blocks.BattleBlockIDs;
 import com.remy.blockbattles.game.blocks.CreateBlocks;
+import com.remy.blockbattles.game.blocks.abilities.Abilities;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 
 public class GameLogic {
   private final BattleState battleState;
@@ -23,6 +28,18 @@ public class GameLogic {
     return CreateBlocks.findByMinecraftId(blockId)
         .map(this::onPlaceBattleBlock)
         .orElse(false);
+  }
+
+  public boolean onPlaceBattleBlock(String blockId, Level level, BlockPos pos) {
+    boolean wasTnt = blockId.equals(BattleBlockIDs.TNT.getId());
+
+    if (wasTnt) {
+      Abilities.tntAbility(level, pos);
+    }
+
+    boolean wasBattleBlock = onPlaceBattleBlock(blockId);
+
+    return wasTnt || wasBattleBlock;
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock) {
