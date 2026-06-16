@@ -6,13 +6,16 @@ import com.remy.blockbattles.game.blocks.BattleBlock;
 import com.remy.blockbattles.game.blocks.BattleBlockIDs;
 import com.remy.blockbattles.game.blocks.CreateBlocks;
 import com.remy.blockbattles.game.blocks.abilities.Abilities;
+import com.remy.blockbattles.game.gui.BattleCardItems;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
 
 public class GameLogic {
   private final BattleState battleState;
+  private final DeckManager deckManager;
 
   private int pendingDamage;
   private int pendingHealing;
@@ -25,6 +28,7 @@ public class GameLogic {
 
   public GameLogic(BattleState battleState) {
     this.battleState = battleState;
+    this.deckManager = new DeckManager();
   }
 
   public boolean canPlaceBattleBlock(String blockId, TeamSide actingSide) {
@@ -32,7 +36,9 @@ public class GameLogic {
       return true;
     }
 
-    return actingSide != null && actingSide == battleState.getActiveSide();
+    return actingSide != null
+        && actingSide == battleState.getActiveSide()
+        && battleState.getTeam(actingSide).hasCardInHand(blockId);
   }
 
   public boolean onPlaceBattleBlock(String blockId) {
@@ -206,13 +212,40 @@ public class GameLogic {
     enemyTeam.loseShield(pendingShieldDamage);
 
     clearPendingEffects();
+    currentTeam.clearHand();
     battleState.setActiveSide(resolvedActingSide.otherSide());
+    drawHandForTeam(battleState.getActiveTeam());
   }
 
   public void resetBattle() {
     clearPendingEffects();
     battleState.clearPlacedBlocks();
     battleState.resetForNewBattle();
+    battleState.getRedTeam().clearHand();
+    battleState.getBlueTeam().clearHand();
+    drawHandForTeam(battleState.getActiveTeam());
+  }
+
+  public void updateConfiguredDeck(TeamSide side, java.util.List<BattleBlock> deck) {
+    battleState.setConfiguredDeck(side, deck);
+    battleState.applyConfiguredDeck(side);
+
+    if (battleState.getActiveSide() == side) {
+      battleState.getOpponentOf(side).clearHand();
+      drawHandForTeam(battleState.getActiveTeam());
+      return;
+    }
+
+    battleState.getTeam(side).clearHand();
+  }
+
+  public void syncBattleHands(MinecraftServer server) {
+    BattleCardItems.syncHands(server, battleState);
+  }
+
+  private void drawHandForTeam(BattleTeam team) {
+    team.clearHand();
+    deckManager.dealCards(team, BattleCardItems.HAND_SIZE);
   }
 
   private void clearPendingEffects() {

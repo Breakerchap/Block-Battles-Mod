@@ -4,14 +4,17 @@ import com.remy.blockbattles.game.logic.BattleState;
 import com.remy.blockbattles.game.logic.BattlePlayerTeams;
 import com.remy.blockbattles.game.logic.GameLogic;
 import com.remy.blockbattles.game.logic.TeamSide;
+import com.remy.blockbattles.game.gui.BattleDeckBuilderMenu;
 import com.remy.blockbattles.game.gui.BattleScoreboards;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.SimpleMenuProvider;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,12 +50,15 @@ public class BlockBattlesMod implements ModInitializer {
             .executes(context -> {
               BattlePlayerTeams.ensureTeams(context.getSource().getServer());
               GAME_LOGIC.resetBattle();
+              GAME_LOGIC.syncBattleHands(context.getSource().getServer());
               BattleScoreboards.updateScoreboard(context.getSource().getServer(), BATTLE_STATE);
               context.getSource().sendSuccess(
                   () -> Component.literal("Block Battles has been reset to its default state."),
                   false);
               return 1;
             }))
+        .then(Commands.literal("buildDeck")
+            .executes(context -> openBuildDeck(context.getSource())))
         .then(Commands.literal("showScoreboards")
             .executes(context -> {
               BattleScoreboards.updateScoreboard(context.getSource().getServer(), BATTLE_STATE);
@@ -64,9 +70,11 @@ public class BlockBattlesMod implements ModInitializer {
   }
 
   private static int joinTeam(CommandSourceStack source, TeamSide side)
-      throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+      throws CommandSyntaxException {
     var player = source.getPlayerOrException();
     boolean changed = BattlePlayerTeams.assignPlayerToTeam(source.getServer(), player, side);
+
+    GAME_LOGIC.syncBattleHands(source.getServer());
 
     source.sendSuccess(
         () -> Component.literal(changed
@@ -74,6 +82,21 @@ public class BlockBattlesMod implements ModInitializer {
             : "You are already on the " + side.getDisplayName() + " team."),
         false);
 
+    return 1;
+  }
+
+  private static int openBuildDeck(CommandSourceStack source) throws CommandSyntaxException {
+    var player = source.getPlayerOrException();
+    TeamSide teamSide = BattlePlayerTeams.getTeamSide(player).orElse(null);
+
+    if (teamSide == null) {
+      player.sendSystemMessage(Component.literal("Join the Red or Blue team first with /BB join red or /BB join blue."));
+      return 0;
+    }
+
+    player.openMenu(new SimpleMenuProvider(
+        (containerId, inventory, menuPlayer) -> new BattleDeckBuilderMenu(containerId, inventory, GAME_LOGIC, teamSide),
+        Component.literal(teamSide.getDisplayName() + " Deck Builder")));
     return 1;
   }
 }

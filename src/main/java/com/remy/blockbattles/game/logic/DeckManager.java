@@ -16,8 +16,6 @@ public class DeckManager {
     List<BattleBlock> drawPile = team.getDrawPile();
     List<BattleBlock> hand = team.getHand();
 
-    Collections.shuffle(drawPile);
-
     while (hand.size() < targetHandSize) {
       if (drawPile.isEmpty()) {
         team.refillDrawPile();

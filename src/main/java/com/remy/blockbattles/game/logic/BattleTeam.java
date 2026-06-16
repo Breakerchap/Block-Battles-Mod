@@ -85,11 +85,28 @@ public class BattleTeam {
     this.startingDeck.clear();
     this.startingDeck.addAll(Objects.requireNonNull(startingDeck, "startingDeck"));
     refillDrawPile();
+    Collections.shuffle(drawPile);
   }
 
   public void refillDrawPile() {
     drawPile.clear();
     drawPile.addAll(startingDeck);
+  }
+
+  public void setDeck(List<BattleBlock> deck) {
+    startingDeck.clear();
+    startingDeck.addAll(Objects.requireNonNull(deck, "deck"));
+    clearHand();
+    refillDrawPile();
+    Collections.shuffle(drawPile);
+  }
+
+  public void clearHand() {
+    hand.clear();
+  }
+
+  public boolean hasCardInHand(String blockId) {
+    return hand.stream().anyMatch(card -> card.id.getId().equals(blockId));
   }
 
   public void heal(int amount) {

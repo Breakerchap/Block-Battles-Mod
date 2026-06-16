@@ -40,7 +40,9 @@ public class PlaceBlockMixin {
     if (context.getPlayer() != null) {
       Component message = teamSide == null
           ? Component.literal("Join the Red or Blue team first with /BB join red or /BB join blue.")
-          : Component.literal("It is " + BlockBattlesMod.BATTLE_STATE.getActiveSide().getDisplayName() + "'s turn.");
+          : teamSide != BlockBattlesMod.BATTLE_STATE.getActiveSide()
+              ? Component.literal("It is " + BlockBattlesMod.BATTLE_STATE.getActiveSide().getDisplayName() + "'s turn.")
+              : Component.literal("That block is not in your current 3-card hand.");
       context.getPlayer().sendSystemMessage(message);
     }
 
@@ -73,6 +75,7 @@ public class PlaceBlockMixin {
         BattlePlayerTeams.getTeamSide(context.getPlayer()).orElse(null));
 
     if (handled) {
+      BlockBattlesMod.GAME_LOGIC.syncBattleHands(serverLevel.getServer());
       BattleScoreboards.updateScoreboard(
           serverLevel.getServer(),
           BlockBattlesMod.BATTLE_STATE);
