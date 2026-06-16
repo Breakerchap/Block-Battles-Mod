@@ -243,6 +243,17 @@ public class GameLogic {
     BattleCardItems.syncHands(server, battleState);
   }
 
+  public void forceTurn(TeamSide side) {
+    battleState.getRedTeam().clearHand();
+    battleState.getBlueTeam().clearHand();
+    battleState.setActiveSide(side);
+    drawHandForTeam(battleState.getActiveTeam());
+  }
+
+  public void redrawActiveHand() {
+    drawHandForTeam(battleState.getActiveTeam());
+  }
+
   private void drawHandForTeam(BattleTeam team) {
     team.clearHand();
     deckManager.dealCards(team, BattleCardItems.HAND_SIZE);

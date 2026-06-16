@@ -1,6 +1,10 @@
 package com.remy.blockbattles;
 
+import java.util.stream.Collectors;
+
+import com.remy.blockbattles.game.blocks.BattleBlock;
 import com.remy.blockbattles.game.logic.BattleState;
+import com.remy.blockbattles.game.logic.BattleTeam;
 import com.remy.blockbattles.game.logic.BattlePlayerTeams;
 import com.remy.blockbattles.game.logic.GameLogic;
 import com.remy.blockbattles.game.logic.TeamSide;
@@ -59,6 +63,18 @@ public class BlockBattlesMod implements ModInitializer {
             }))
         .then(Commands.literal("buildDeck")
             .executes(context -> openBuildDeck(context.getSource())))
+        .then(Commands.literal("debug")
+            .then(Commands.literal("skipTurn")
+                .executes(context -> skipCurrentTurn(context.getSource()))))
+            .then(Commands.literal("setTurn")
+                .then(Commands.literal("red")
+                    .executes(context -> setTurn(context.getSource(), TeamSide.RED)))
+                .then(Commands.literal("blue")
+                    .executes(context -> setTurn(context.getSource(), TeamSide.BLUE))))
+            .then(Commands.literal("redrawHand")
+                .executes(context -> redrawHand(context.getSource())))
+            .then(Commands.literal("showState")
+                .executes(context -> showState(context.getSource())))
         .then(Commands.literal("showScoreboards")
             .executes(context -> {
               BattleScoreboards.updateScoreboard(context.getSource().getServer(), BATTLE_STATE);
@@ -98,5 +114,82 @@ public class BlockBattlesMod implements ModInitializer {
         (containerId, inventory, menuPlayer) -> new BattleDeckBuilderMenu(containerId, inventory, GAME_LOGIC, teamSide),
         Component.literal(teamSide.getDisplayName() + " Deck Builder")));
     return 1;
+  }
+
+  private static int skipCurrentTurn(CommandSourceStack source) {
+    TeamSide skippedSide = BATTLE_STATE.getActiveSide();
+
+    GAME_LOGIC.endTurn();
+    GAME_LOGIC.syncBattleHands(source.getServer());
+    BattleScoreboards.updateScoreboard(source.getServer(), BATTLE_STATE);
+
+    source.sendSuccess(
+        () -> Component.literal(
+            skippedSide.getDisplayName()
+                + " team's turn was skipped. It is now "
+                + BATTLE_STATE.getActiveSide().getDisplayName()
+                + "'s turn."),
+        true);
+    return 1;
+  }
+
+  private static int setTurn(CommandSourceStack source, TeamSide side) {
+    GAME_LOGIC.forceTurn(side);
+    GAME_LOGIC.syncBattleHands(source.getServer());
+    BattleScoreboards.updateScoreboard(source.getServer(), BATTLE_STATE);
+
+    source.sendSuccess(
+        () -> Component.literal("It is now " + side.getDisplayName() + "'s turn."),
+        true);
+    return 1;
+  }
+
+  private static int redrawHand(CommandSourceStack source) {
+    TeamSide activeSide = BATTLE_STATE.getActiveSide();
+
+    GAME_LOGIC.redrawActiveHand();
+    GAME_LOGIC.syncBattleHands(source.getServer());
+    BattleScoreboards.updateScoreboard(source.getServer(), BATTLE_STATE);
+
+    source.sendSuccess(
+        () -> Component.literal(activeSide.getDisplayName() + " hand redrawn."),
+        true);
+    return 1;
+  }
+
+  private static int showState(CommandSourceStack source) {
+    BattleTeam redTeam = BATTLE_STATE.getRedTeam();
+    BattleTeam blueTeam = BATTLE_STATE.getBlueTeam();
+
+    source.sendSuccess(
+        () -> Component.literal("Active Turn: " + BATTLE_STATE.getActiveSide().getDisplayName()),
+        false);
+    source.sendSuccess(
+        () -> Component.literal("Red - HP " + redTeam.getHealth() + "/" + redTeam.getMaxHealth()
+            + ", Shield " + redTeam.getShield()
+            + ", Hand [" + formatHand(redTeam) + "]"
+            + ", Draw Pile " + redTeam.getDrawPileSize()),
+        false);
+    source.sendSuccess(
+        () -> Component.literal("Blue - HP " + blueTeam.getHealth() + "/" + blueTeam.getMaxHealth()
+            + ", Shield " + blueTeam.getShield()
+            + ", Hand [" + formatHand(blueTeam) + "]"
+            + ", Draw Pile " + blueTeam.getDrawPileSize()),
+        false);
+    return 1;
+  }
+
+  private static String formatHand(BattleTeam team) {
+    if (team.getHand().isEmpty()) {
+      return "empty";
+    }
+
+    return team.getHand().stream()
+        .map(BlockBattlesMod::formatBattleBlock)
+        .collect(Collectors.joining(", "));
+  }
+
+  private static String formatBattleBlock(BattleBlock battleBlock) {
+    return battleBlock.displayName;
   }
 }
