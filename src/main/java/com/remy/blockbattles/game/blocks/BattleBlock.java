@@ -7,21 +7,70 @@ public class BattleBlock {
   final public Classification classification;
 
   final public int damage;
-  final public int healing;
-  final public int defence;
-  final public int defenceDamage;
+  public boolean damagePerTurn = false;
 
-  public BattleBlock(BattleBlockIDs id, String displayName, String abilityDescription,
+  final public int healing;
+  public boolean healingPerTurn = false;
+
+  final public int defence;
+  public boolean defencePerTurn = false;
+
+  final public int defenceDamage;
+  public boolean defenceDamagePerTurn = false;
+
+  public BattleBlock(
+      BattleBlockIDs id,
+      String displayName,
+      String abilityDescription,
       Classification classification,
-      int damage, int healing, int defence, int defenceDamage) {
+      int damage,
+      int healing,
+      int defence,
+      int defenceDamage) {
+    this(
+        id,
+        displayName,
+        abilityDescription,
+        classification,
+        damage,
+        false,
+        healing,
+        false,
+        defence,
+        false,
+        defenceDamage,
+        false);
+  }
+
+  public BattleBlock(
+      BattleBlockIDs id,
+      String displayName,
+      String abilityDescription,
+      Classification classification,
+      int damage,
+      boolean damagePerTurn,
+      int healing,
+      boolean healingPerTurn,
+      int defence,
+      boolean defencePerTurn,
+      int defenceDamage,
+      boolean defenceDamagePerTurn) {
     this.id = id;
     this.displayName = displayName;
     this.abilityDescription = abilityDescription;
     this.classification = classification;
+
     this.damage = damage;
+    this.damagePerTurn = damagePerTurn;
+
     this.healing = healing;
+    this.healingPerTurn = healingPerTurn;
+
     this.defence = defence;
+    this.defencePerTurn = defencePerTurn;
+
     this.defenceDamage = defenceDamage;
+    this.defenceDamagePerTurn = defenceDamagePerTurn;
   }
 
   @Override

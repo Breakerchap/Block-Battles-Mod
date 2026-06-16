@@ -62,6 +62,7 @@ public enum BattleBlockIDs {
   DRAGON_EGG("minecraft:dragon_egg"),
   FURNACE("minecraft:furnace"),
   CHEST("minecraft:chest"),
+  TRAPPED_CHEST("minecraft:trapped_chest"),
   CAULDRON("minecraft:cauldron"),
   COMPOSTER("minecraft:composter"),
   ANVIL("minecraft:anvil"),
@@ -138,7 +139,14 @@ public enum BattleBlockIDs {
   WITHER_SKELETON_SKULL("minecraft:wither_skeleton_skull"),
   ZOMBIE_HEAD("minecraft:zombie_head"),
   DRAGON_HEAD("minecraft:dragon_head"),
-  OAK_PLANKS("minecraft:oak_planks");
+  OAK_PLANKS("minecraft:oak_planks"),
+  RAW_IRON_BLOCK("minecraft:raw_iron_block"),
+  RAW_GOLD_BLOCK("minecraft:raw_gold_block"),
+  RAW_COPPER_BLOCK("minecraft:raw_copper_block"),
+  PALE_OAK_LOG("minecraft:pale_oak_log"),
+  PALE_MOSS_BLOCK("minecraft:pale_moss_block"),
+  PALE_MOSS_CARPET("minecraft:pale_moss_carpet"),
+  CREAKING_HEART("minecraft:creaking_heart");
 
   private final String id;
 

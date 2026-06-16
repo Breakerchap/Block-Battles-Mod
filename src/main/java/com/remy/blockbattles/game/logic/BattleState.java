@@ -6,7 +6,7 @@ import com.remy.blockbattles.game.blocks.BattleBlock;
 import com.remy.blockbattles.game.blocks.CreateBlocks;
 
 public class BattleState {
-  private static final int STARTING_HEALTH = 100;
+  private static final int STARTING_HEALTH = 200;
   private static final int STARTING_SHIELD = 0;
   private static final BattleState SHARED_INSTANCE = new BattleState();
 
@@ -54,7 +54,13 @@ public class BattleState {
     activeSide = activeSide.otherSide();
   }
 
+  public void clearPlacedBlocks() {
+    redTeam.clearPlacedBlocks();
+    blueTeam.clearPlacedBlocks();
+  }
+
   public void resetForNewBattle() {
+    clearPlacedBlocks();
     redTeam.resetForNewBattle(STARTING_HEALTH, STARTING_SHIELD, createRedStartingDeck());
     blueTeam.resetForNewBattle(STARTING_HEALTH, STARTING_SHIELD, createBlueStartingDeck());
     activeSide = TeamSide.RED;

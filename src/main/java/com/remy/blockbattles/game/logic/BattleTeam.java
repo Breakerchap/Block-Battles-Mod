@@ -13,9 +13,11 @@ public class BattleTeam {
 
   private int health;
   private int shield;
+  private int maxHealth;
   private final ArrayList<BattleBlock> hand = new ArrayList<>();
   private final ArrayList<BattleBlock> startingDeck = new ArrayList<>();
   private final ArrayList<BattleBlock> drawPile = new ArrayList<>();
+  private final ArrayList<PlacedBattleBlock> placedBlocks = new ArrayList<>();
 
   public BattleTeam(TeamSide side) {
     this.side = Objects.requireNonNull(side, "side");
@@ -32,6 +34,10 @@ public class BattleTeam {
 
   public int getHealth() {
     return health;
+  }
+
+  public int getMaxHealth() {
+    return maxHealth;
   }
 
   public int getShield() {
@@ -58,10 +64,24 @@ public class BattleTeam {
     return hand.size();
   }
 
+  List<PlacedBattleBlock> getPlacedBlocks() {
+    return placedBlocks;
+  }
+
+  public void addPlacedBlock(PlacedBattleBlock placedBlock) {
+    placedBlocks.add(Objects.requireNonNull(placedBlock, "placedBlock"));
+  }
+
+  public void clearPlacedBlocks() {
+    placedBlocks.clear();
+  }
+
   public void resetForNewBattle(int startingHealth, int startingShield, List<BattleBlock> startingDeck) {
-    health = startingHealth;
+    maxHealth = startingHealth;
+    health = maxHealth;
     shield = startingShield;
     hand.clear();
+    clearPlacedBlocks();
     this.startingDeck.clear();
     this.startingDeck.addAll(Objects.requireNonNull(startingDeck, "startingDeck"));
     refillDrawPile();
@@ -74,6 +94,7 @@ public class BattleTeam {
 
   public void heal(int amount) {
     health += amount;
+    health = Math.min(health, maxHealth);
   }
 
   public void takeHealthDamage(int amount) {
