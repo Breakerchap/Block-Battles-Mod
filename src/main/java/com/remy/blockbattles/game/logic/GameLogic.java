@@ -1,5 +1,6 @@
 package com.remy.blockbattles.game.logic;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import com.remy.blockbattles.game.blocks.BattleBlock;
@@ -57,12 +58,10 @@ public class GameLogic {
     }
 
     boolean wasTnt = blockId.equals(BattleBlockIDs.TNT.getId());
-    boolean wasRedTulip = blockId.equals(BattleBlockIDs.RED_TULIP.getId());
 
-    // @formatter:off
-    if (wasTnt) {Abilities.tntAbility(level, pos, actingSide);}
-    else if (wasRedTulip) {Abilities.redTulipAbility(getTeamForTurn(actingSide));} 
-    // @formatter:on
+    if (wasTnt) {
+      Abilities.tntAbility(level, pos, actingSide);
+    }
 
     boolean wasBattleBlock = CreateBlocks.findByMinecraftId(blockId)
         .map(battleBlock -> {
@@ -86,6 +85,7 @@ public class GameLogic {
       return false;
     }
 
+    Abilities.onPlaceAbility(battleBlock, getTeamForTurn(actingSide));
     queueImmediateBlockEffects(battleBlock);
 
     endTurn(actingSide);
@@ -165,6 +165,7 @@ public class GameLogic {
 
   private void queuePerTurnEffects(BattleTeam team) {
     Iterator<PlacedBattleBlock> iterator = team.getPlacedBlocks().iterator();
+    ArrayList<PlacedBattleBlock> grownBlocks = new ArrayList<>();
 
     while (iterator.hasNext()) {
       PlacedBattleBlock placedBlock = iterator.next();
@@ -190,6 +191,25 @@ public class GameLogic {
 
       if (battleBlock.defenceDamagePerTurn) {
         pendingShieldDamage += battleBlock.defenceDamage;
+      }
+
+      applyPerTurnAbility(placedBlock, grownBlocks);
+    }
+
+    grownBlocks.forEach(team::addPlacedBlock);
+  }
+
+  private void applyPerTurnAbility(PlacedBattleBlock placedBlock, ArrayList<PlacedBattleBlock> grownBlocks) {
+    switch (placedBlock.battleBlock().id) {
+      case CHERRY_LOG, JUNGLE_LOG -> {
+        if (Abilities.growBlockUpwardIfAir(placedBlock.level(), placedBlock.pos())) {
+          grownBlocks.add(new PlacedBattleBlock(
+              placedBlock.level(),
+              placedBlock.pos().above(),
+              placedBlock.battleBlock()));
+        }
+      }
+      default -> {
       }
     }
   }

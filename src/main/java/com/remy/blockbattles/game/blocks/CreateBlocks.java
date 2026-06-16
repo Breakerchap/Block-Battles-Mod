@@ -201,12 +201,12 @@ public class CreateBlocks {
 
   public static final BattleBlock CHERRY_LEAVES = block(
       BattleBlockIDs.CHERRY_LEAVES, "Cherry Leaves",
-      "None",
+      "Heals a tenth of your max health.",
       0, 0, 0, 0);
 
   public static final BattleBlock CHERRY_LOG = block(
       BattleBlockIDs.CHERRY_LOG, "Cherry Log",
-      "Healing happens per turn.",
+      "Healing happens per turn. Every turn 1 Cherry Log gets placed above that Cherry Log if there isn't already a block above.",
       0, false,
       0, false,
       3, true,
@@ -214,7 +214,7 @@ public class CreateBlocks {
 
   public static final BattleBlock JUNGLE_LOG = block(
       BattleBlockIDs.JUNGLE_LOG, "Jungle Log",
-      "Defence happens per turn.",
+      "Defence happens per turn. Every turn 1 Jungle Log gets placed above that Jungle Log if there isn't already a block above.",
       0, false,
       1, true,
       0, false,
