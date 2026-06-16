@@ -27,6 +27,14 @@ public class GameLogic {
     this.battleState = battleState;
   }
 
+  public boolean canPlaceBattleBlock(String blockId, TeamSide actingSide) {
+    if (!isBattlePlacement(blockId)) {
+      return true;
+    }
+
+    return actingSide != null && actingSide == battleState.getActiveSide();
+  }
+
   public boolean onPlaceBattleBlock(String blockId) {
     return CreateBlocks.findByMinecraftId(blockId)
         .map(this::onPlaceBattleBlock)
@@ -34,19 +42,29 @@ public class GameLogic {
   }
 
   public boolean onPlaceBattleBlock(String blockId, Level level, BlockPos pos) {
-    boolean wasTnt = blockId.equals(BattleBlockIDs.TNT.getId());
+    return onPlaceBattleBlock(blockId, level, pos, battleState.getActiveSide());
+  }
 
-    if (wasTnt) {
-      Abilities.tntAbility(level, pos);
+  public boolean onPlaceBattleBlock(String blockId, Level level, BlockPos pos, TeamSide actingSide) {
+    if (!canPlaceBattleBlock(blockId, actingSide)) {
+      return false;
     }
+
+    boolean wasTnt = blockId.equals(BattleBlockIDs.TNT.getId());
+    boolean wasRedTulip = blockId.equals(BattleBlockIDs.RED_TULIP.getId());
+
+    // @formatter:off
+    if (wasTnt) {Abilities.tntAbility(level, pos, actingSide);}
+    else if (wasRedTulip) {Abilities.redTulipAbility(getTeamForTurn(actingSide));} 
+    // @formatter:on
 
     boolean wasBattleBlock = CreateBlocks.findByMinecraftId(blockId)
         .map(battleBlock -> {
           if (level instanceof ServerLevel serverLevel) {
-            return onPlaceBattleBlock(battleBlock, serverLevel, pos);
+            return onPlaceBattleBlock(battleBlock, serverLevel, pos, actingSide);
           }
 
-          return onPlaceBattleBlock(battleBlock);
+          return onPlaceBattleBlock(battleBlock, actingSide);
         })
         .orElse(false);
 
@@ -54,15 +72,27 @@ public class GameLogic {
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock) {
+    return onPlaceBattleBlock(battleBlock, battleState.getActiveSide());
+  }
+
+  public boolean onPlaceBattleBlock(BattleBlock battleBlock, TeamSide actingSide) {
+    if (!canPlaceBattleBlock(battleBlock.id.getId(), actingSide)) {
+      return false;
+    }
+
     queueImmediateBlockEffects(battleBlock);
 
-    endTurn();
+    endTurn(actingSide);
     return true;
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos) {
-    registerPlacedBlock(battleBlock, level, pos);
-    return onPlaceBattleBlock(battleBlock);
+    return onPlaceBattleBlock(battleBlock, level, pos, battleState.getActiveSide());
+  }
+
+  public boolean onPlaceBattleBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos, TeamSide actingSide) {
+    registerPlacedBlock(battleBlock, level, pos, actingSide);
+    return onPlaceBattleBlock(battleBlock, actingSide);
   }
 
   public BattleState getBattleState() {
@@ -95,12 +125,12 @@ public class GameLogic {
     }
   }
 
-  private void registerPlacedBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos) {
+  private void registerPlacedBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos, TeamSide actingSide) {
     if (!hasPerTurnEffect(battleBlock)) {
       return;
     }
 
-    getCurrentTeam().addPlacedBlock(new PlacedBattleBlock(level, pos, battleBlock));
+    getTeamForTurn(actingSide).addPlacedBlock(new PlacedBattleBlock(level, pos, battleBlock));
   }
 
   private boolean hasPerTurnEffect(BattleBlock battleBlock) {
@@ -108,6 +138,23 @@ public class GameLogic {
         || battleBlock.healingPerTurn
         || battleBlock.defencePerTurn
         || battleBlock.defenceDamagePerTurn;
+  }
+
+  private boolean isBattlePlacement(String blockId) {
+    return blockId.equals(BattleBlockIDs.TNT.getId())
+        || CreateBlocks.findByMinecraftId(blockId).isPresent();
+  }
+
+  private TeamSide resolveActingSide(TeamSide actingSide) {
+    return actingSide == null ? battleState.getActiveSide() : actingSide;
+  }
+
+  private BattleTeam getTeamForTurn(TeamSide actingSide) {
+    return battleState.getTeam(resolveActingSide(actingSide));
+  }
+
+  private BattleTeam getEnemyTeamForTurn(TeamSide actingSide) {
+    return battleState.getOpponentOf(resolveActingSide(actingSide));
   }
 
   private void queuePerTurnEffects(BattleTeam team) {
@@ -142,8 +189,13 @@ public class GameLogic {
   }
 
   public void endTurn() {
-    BattleTeam currentTeam = getCurrentTeam();
-    BattleTeam enemyTeam = getEnemyTeam();
+    endTurn(battleState.getActiveSide());
+  }
+
+  public void endTurn(TeamSide actingSide) {
+    TeamSide resolvedActingSide = resolveActingSide(actingSide);
+    BattleTeam currentTeam = getTeamForTurn(resolvedActingSide);
+    BattleTeam enemyTeam = getEnemyTeamForTurn(resolvedActingSide);
 
     queuePerTurnEffects(currentTeam);
 
@@ -154,7 +206,7 @@ public class GameLogic {
     enemyTeam.loseShield(pendingShieldDamage);
 
     clearPendingEffects();
-    battleState.advanceTurn();
+    battleState.setActiveSide(resolvedActingSide.otherSide());
   }
 
   public void resetBattle() {

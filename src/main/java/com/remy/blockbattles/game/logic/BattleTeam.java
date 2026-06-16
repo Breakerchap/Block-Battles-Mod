@@ -97,6 +97,11 @@ public class BattleTeam {
     health = Math.min(health, maxHealth);
   }
 
+  public void increaseMaxHealth(int amount) {
+    maxHealth = Math.max(0, maxHealth + amount);
+    health = Math.min(health, maxHealth);
+  }
+
   public void takeHealthDamage(int amount) {
     health -= Math.max(0, amount - shield);
   }

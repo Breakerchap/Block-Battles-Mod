@@ -1,7 +1,9 @@
 package com.remy.blockbattles;
 
 import com.remy.blockbattles.game.logic.BattleState;
+import com.remy.blockbattles.game.logic.BattlePlayerTeams;
 import com.remy.blockbattles.game.logic.GameLogic;
+import com.remy.blockbattles.game.logic.TeamSide;
 import com.remy.blockbattles.game.gui.BattleScoreboards;
 import com.mojang.brigadier.CommandDispatcher;
 
@@ -36,8 +38,14 @@ public class BlockBattlesMod implements ModInitializer {
 
   private static void registerCommand(CommandDispatcher<CommandSourceStack> dispatcher, String commandName) {
     dispatcher.register(Commands.literal(commandName)
+        .then(Commands.literal("join")
+            .then(Commands.literal("red")
+                .executes(context -> joinTeam(context.getSource(), TeamSide.RED)))
+            .then(Commands.literal("blue")
+                .executes(context -> joinTeam(context.getSource(), TeamSide.BLUE))))
         .then(Commands.literal("reset")
             .executes(context -> {
+              BattlePlayerTeams.ensureTeams(context.getSource().getServer());
               GAME_LOGIC.resetBattle();
               BattleScoreboards.updateScoreboard(context.getSource().getServer(), BATTLE_STATE);
               context.getSource().sendSuccess(
@@ -53,5 +61,19 @@ public class BlockBattlesMod implements ModInitializer {
                   false);
               return 1;
             })));
+  }
+
+  private static int joinTeam(CommandSourceStack source, TeamSide side)
+      throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    var player = source.getPlayerOrException();
+    boolean changed = BattlePlayerTeams.assignPlayerToTeam(source.getServer(), player, side);
+
+    source.sendSuccess(
+        () -> Component.literal(changed
+            ? "You joined the " + side.getDisplayName() + " team."
+            : "You are already on the " + side.getDisplayName() + " team."),
+        false);
+
+    return 1;
   }
 }

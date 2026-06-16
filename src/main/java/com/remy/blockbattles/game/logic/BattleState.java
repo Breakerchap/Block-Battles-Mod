@@ -54,6 +54,10 @@ public class BattleState {
     activeSide = activeSide.otherSide();
   }
 
+  public void setActiveSide(TeamSide side) {
+    activeSide = side;
+  }
+
   public void clearPlacedBlocks() {
     redTeam.clearPlacedBlocks();
     blueTeam.clearPlacedBlocks();
