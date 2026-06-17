@@ -91,6 +91,9 @@ public final class BattleCardItems {
       lore.add(Component.literal("Block Battles Card").withStyle(ChatFormatting.GOLD));
     }
 
+    lore.add(Component.literal("Classification: ")
+        .withStyle(ChatFormatting.GRAY)
+        .append(Component.literal(formatClassification(battleBlock.classification)).withStyle(ChatFormatting.LIGHT_PURPLE)));
     lore.add(Component.literal("Ability: " + battleBlock.abilityDescription).withStyle(ChatFormatting.GRAY));
     lore.add(statLine("Damage", battleBlock.damage, battleBlock.damagePerTurn, ChatFormatting.RED));
     lore.add(statLine("Defence", battleBlock.defence, battleBlock.defencePerTurn, ChatFormatting.AQUA));
@@ -125,6 +128,16 @@ public final class BattleCardItems {
     }
 
     return String.valueOf(value);
+  }
+
+  private static String formatClassification(com.remy.blockbattles.game.blocks.Classification classification) {
+    return switch (classification) {
+      case NONE -> "None";
+      case NATURAL -> "Natural";
+      case MAN_MADE -> "Man-made";
+      case CAVE -> "Cave";
+      case OTHERWORLDLY -> "Otherworldly";
+    };
   }
 
   private static Item resolveDisplayItem(BattleBlock battleBlock) {
