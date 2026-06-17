@@ -10,15 +10,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 
 public class Abilities {
-  public static void onPlaceAbility(BattleBlock battleBlock, BattleTeam actingTeam) {
-    switch (battleBlock.id) {
-      case RED_TULIP -> redTulipAbility(actingTeam);
-      case CHERRY_LEAVES -> cherryLeavesAbility(actingTeam);
-      default -> {
-      }
-    }
-  }
-
   public static void tntAbility(Level level, BlockPos pos, TeamSide actingSide) {
     if (level.isClientSide()) {
       return;
@@ -37,6 +28,10 @@ public class Abilities {
 
   public static void cherryLeavesAbility(BattleTeam actingTeam) {
     actingTeam.heal(actingTeam.getMaxHealth() / 10);
+  }
+
+  public static void cornflowerAbility(BattleTeam actingTeam) {
+    actingTeam.heal(actingTeam.getHealth() / 4);
   }
 
   public static boolean growBlockUpwardIfAir(ServerLevel level, BlockPos pos) {

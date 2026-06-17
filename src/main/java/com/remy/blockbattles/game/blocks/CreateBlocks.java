@@ -158,7 +158,7 @@ public class CreateBlocks {
 
   public static final BattleBlock DEAD_BUSH = block(
       BattleBlockIDs.DEAD_BUSH, "Dead Bush",
-      "None",
+      "Deals 1 extra damage for every 5 health its owner is missing.",
       2, true,
       0, false,
       0, false,
@@ -176,7 +176,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CORNFLOWER = block(
       BattleBlockIDs.CORNFLOWER, "Cornflower",
-      "None",
+      "Heals a quarter of your current health.",
       0, 0, 0, 0);
 
   public static final BattleBlock PINK_PETALS = block(
@@ -293,12 +293,12 @@ public class CreateBlocks {
 
   public static final BattleBlock CRIMSON_HYPHAE = block(
       BattleBlockIDs.CRIMSON_HYPHAE, "Crimson Hyphae",
-      "None",
+      "Deals 1 damage for each Otherworldly block on the board.",
       0, 0, 0, 0);
 
   public static final BattleBlock WARPED_HYPHAE = block(
       BattleBlockIDs.WARPED_HYPHAE, "Warped Hyphae",
-      "None",
+      "Heals 1 for each Otherworldly block on the board.",
       0, 0, 0, 0);
 
   public static final BattleBlock SOUL_SAND = block(
@@ -326,12 +326,12 @@ public class CreateBlocks {
 
   public static final BattleBlock SOUL_TORCH = block(
       BattleBlockIDs.SOUL_TORCH, "Soul Torch",
-      "None",
+      "Gives +4 healing from all sources on your next turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock SOUL_LANTERN = block(
       BattleBlockIDs.SOUL_LANTERN, "Soul Lantern",
-      "None",
+      "This damage bypasses defence.",
       20, 0, 0, 0);
 
   public static final BattleBlock CAMPFIRE = block(
@@ -454,7 +454,7 @@ public class CreateBlocks {
 
   public static final BattleBlock LECTERN = block(
       BattleBlockIDs.LECTERN, "Lectern",
-      "None",
+      "Deals +1 damage for each block in your hand.",
       6, 0, 0, 0);
 
   public static final BattleBlock BREWING_STAND = block(
@@ -464,7 +464,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SMITHING_TABLE = block(
       BattleBlockIDs.SMITHING_TABLE, "Smithing Table",
-      "None",
+      "Deals 1 damage for each Man-made block on the board.",
       0, 0, 0, 0);
 
   public static final BattleBlock ENCHANTING_TABLE = block(
@@ -487,17 +487,17 @@ public class CreateBlocks {
 
   public static final BattleBlock REDSTONE_TORCH = block(
       BattleBlockIDs.REDSTONE_TORCH, "Redstone Torch",
-      "None",
+      "Gives +5 damage from all sources on your next turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock TORCH = block(
       BattleBlockIDs.TORCH, "Torch",
-      "None",
+      "Gives +2 defence from all sources on your next turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock COPPER_TORCH = block(
       BattleBlockIDs.COPPER_TORCH, "Copper Torch",
-      "None",
+      "You take no damage the next time the opponent attacks you.",
       0, 0, 0, 0);
 
   public static final BattleBlock LIGHTNING_ROD = block(
@@ -589,12 +589,12 @@ public class CreateBlocks {
 
   public static final BattleBlock REINFORCED_DEEPSLATE = block(
       BattleBlockIDs.REINFORCED_DEEPSLATE, "Reinforced Deepslate",
-      "None",
+      "Doubles your defence, with a max increase of 10.",
       0, 0, 0, 0);
 
   public static final BattleBlock DEEPSLATE_BRICKS = block(
       BattleBlockIDs.DEEPSLATE_BRICKS, "Deepslate Bricks",
-      "None",
+      "Deals double your current defence in damage.",
       0, 0, 0, 0);
 
   public static final BattleBlock DEEPSLATE_TILES = block(
@@ -675,7 +675,7 @@ public class CreateBlocks {
 
   public static final BattleBlock LAPIS_BLOCK = block(
       BattleBlockIDs.LAPIS_BLOCK, "Block of Lapis Lazuli",
-      "None",
+      "Heals half of your current health, rounded up. It is then replaced by Dirt in your deck and on the board.",
       0, 0, 0, 0);
 
   public static final BattleBlock REDSTONE_BLOCK = block(
@@ -832,7 +832,7 @@ public class CreateBlocks {
 
   public static final BattleBlock WITHER_SKELETON_SKULL = block(
       BattleBlockIDs.WITHER_SKELETON_SKULL, "Wither Skeleton Skull",
-      "None",
+      "If the opponent has more than 6 defence, deal +8 damage.",
       18, 0, 0, 0);
 
   public static final BattleBlock ZOMBIE_HEAD = block(
@@ -855,17 +855,17 @@ public class CreateBlocks {
 
   public static final BattleBlock RAW_IRON_BLOCK = block(
       BattleBlockIDs.RAW_IRON_BLOCK, "Block of Raw Iron",
-      "None",
+      "Deals 30 damage next turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock RAW_GOLD_BLOCK = block(
       BattleBlockIDs.RAW_GOLD_BLOCK, "Block of Raw Gold",
-      "None",
+      "Gives 6 defence next turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock RAW_COPPER_BLOCK = block(
       BattleBlockIDs.RAW_COPPER_BLOCK, "Block of Raw Copper",
-      "None",
+      "Heals 26 next turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock PALE_OAK_LOG = block(
