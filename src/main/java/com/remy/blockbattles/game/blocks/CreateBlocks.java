@@ -71,7 +71,7 @@ public class CreateBlocks {
 
   public static final BattleBlock MYCELIUM = block(
       BattleBlockIDs.MYCELIUM, "Mycelium",
-      "Unchoosable. Damage happens per turn.",
+      "Unchoosable.",
       8, true,
       0, false,
       0, false,
@@ -79,7 +79,7 @@ public class CreateBlocks {
 
   public static final BattleBlock PODZOL = block(
       BattleBlockIDs.PODZOL, "Podzol",
-      "Unchoosable. Defence happens per turn.",
+      "Unchoosable.",
       0, false,
       2, true,
       0, false,
@@ -87,7 +87,7 @@ public class CreateBlocks {
 
   public static final BattleBlock FARMLAND = block(
       BattleBlockIDs.FARMLAND, "Farmland",
-      "Unchoosable. Healing happens per turn.",
+      "Unchoosable.",
       0, false,
       0, false,
       11, true,
@@ -140,7 +140,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SNOW = block(
       BattleBlockIDs.SNOW, "Snow",
-      "Defence happens per turn. Minimum zero.",
+      "None",
       0, false,
       -1, true,
       0, false,
@@ -158,7 +158,7 @@ public class CreateBlocks {
 
   public static final BattleBlock DEAD_BUSH = block(
       BattleBlockIDs.DEAD_BUSH, "Dead Bush",
-      "Damage happens per turn.",
+      "None",
       2, true,
       0, false,
       0, false,
@@ -171,7 +171,7 @@ public class CreateBlocks {
 
   public static final BattleBlock RED_TULIP = block(
       BattleBlockIDs.RED_TULIP, "Red Tulip",
-      "None",
+      "Increase your team's max health by 20.",
       0, 0, 0, 0);
 
   public static final BattleBlock CORNFLOWER = block(
@@ -201,12 +201,12 @@ public class CreateBlocks {
 
   public static final BattleBlock CHERRY_LEAVES = block(
       BattleBlockIDs.CHERRY_LEAVES, "Cherry Leaves",
-      "Heals a tenth of your max health.",
+      "Heal 10% of your max health.",
       0, 0, 0, 0);
 
   public static final BattleBlock CHERRY_LOG = block(
       BattleBlockIDs.CHERRY_LOG, "Cherry Log",
-      "Healing happens per turn. Every turn 1 Cherry Log gets placed above that Cherry Log if there isn't already a block above.",
+      "Places 1 Cherry Log above itself each turn if the block above is air.",
       0, false,
       0, false,
       3, true,
@@ -214,7 +214,7 @@ public class CreateBlocks {
 
   public static final BattleBlock JUNGLE_LOG = block(
       BattleBlockIDs.JUNGLE_LOG, "Jungle Log",
-      "Defence happens per turn. Every turn 1 Jungle Log gets placed above that Jungle Log if there isn't already a block above.",
+      "Places 1 Jungle Log above itself each turn if the block above is air.",
       0, false,
       1, true,
       0, false,
@@ -277,7 +277,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CRIMSON_NYLIUM = block(
       BattleBlockIDs.CRIMSON_NYLIUM, "Crimson Nylium",
-      "Unchoosable. Damage happens per turn.",
+      "Unchoosable.",
       6, true,
       0, false,
       0, false,
@@ -285,7 +285,7 @@ public class CreateBlocks {
 
   public static final BattleBlock WARPED_NYLIUM = block(
       BattleBlockIDs.WARPED_NYLIUM, "Warped Nylium",
-      "Unchoosable. Healing happens per turn.",
+      "Unchoosable.",
       0, false,
       0, false,
       6, true,
@@ -318,7 +318,7 @@ public class CreateBlocks {
 
   public static final BattleBlock MAGMA_BLOCK = block(
       BattleBlockIDs.MAGMA_BLOCK, "Magma Block",
-      "Damage and healing happen per turn.",
+      "None",
       10, true,
       0, false,
       -2, true,
@@ -336,7 +336,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CAMPFIRE = block(
       BattleBlockIDs.CAMPFIRE, "Campfire",
-      "Damage happens per turn.",
+      "None",
       10, true,
       0, false,
       0, false,
@@ -344,7 +344,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SOUL_CAMPFIRE = block(
       BattleBlockIDs.SOUL_CAMPFIRE, "Soul Campfire",
-      "Damage happens per turn.",
+      "None",
       5, true,
       0, false,
       0, false,
@@ -357,7 +357,7 @@ public class CreateBlocks {
 
   public static final BattleBlock NETHER_BRICKS = block(
       BattleBlockIDs.NETHER_BRICKS, "Nether Bricks",
-      "Damage and defence happen per turn.",
+      "None",
       6, true,
       0, true,
       0, false,
@@ -365,7 +365,7 @@ public class CreateBlocks {
 
   public static final BattleBlock RESPAWN_ANCHOR = block(
       BattleBlockIDs.RESPAWN_ANCHOR, "Respawn Anchor",
-      "Damage happens per turn.",
+      "None",
       2, true,
       0, false,
       0, false,
@@ -383,7 +383,7 @@ public class CreateBlocks {
 
   public static final BattleBlock END_STONE = block(
       BattleBlockIDs.END_STONE, "Endstone",
-      "Defence happens per turn.",
+      "None",
       0, false,
       2, true,
       0, false,
@@ -416,7 +416,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CAULDRON = block(
       BattleBlockIDs.CAULDRON, "Cauldron",
-      "Defence happens per turn.",
+      "None",
       0, false,
       2, true,
       0, false,
@@ -444,12 +444,12 @@ public class CreateBlocks {
 
   public static final BattleBlock LOOM = block(
       BattleBlockIDs.LOOM, "Loom",
-      "Missing values treated as zero.",
+      "None",
       0, 0, 0, 0);
 
   public static final BattleBlock CARTOGRAPHY_TABLE = block(
       BattleBlockIDs.CARTOGRAPHY_TABLE, "Cartography Table",
-      "Missing values treated as zero.",
+      "None",
       0, 0, 0, 0);
 
   public static final BattleBlock LECTERN = block(
@@ -479,7 +479,7 @@ public class CreateBlocks {
 
   public static final BattleBlock DAYLIGHT_SENSOR = block(
       BattleBlockIDs.DAYLIGHT_DETECTOR, "Daylight Sensor",
-      "Damage happens per turn.",
+      "None",
       10, true,
       0, false,
       0, false,
@@ -502,7 +502,7 @@ public class CreateBlocks {
 
   public static final BattleBlock LIGHTNING_ROD = block(
       BattleBlockIDs.LIGHTNING_ROD, "Lightning Rod",
-      "Healing happens per turn. Missing damage value treated as zero.",
+      "None",
       0, false,
       0, false,
       -4, true,
@@ -510,7 +510,7 @@ public class CreateBlocks {
 
   public static final BattleBlock DISPENSER = block(
       BattleBlockIDs.DISPENSER, "Dispenser",
-      "Damage happens per turn.",
+      "None",
       6, true,
       0, false,
       0, false,
@@ -518,7 +518,7 @@ public class CreateBlocks {
 
   public static final BattleBlock MONSTER_SPAWNER = block(
       BattleBlockIDs.SPAWNER, "Monster Spawner",
-      "Damage and healing happen per turn.",
+      "None",
       22, true,
       0, false,
       -10, true,
@@ -571,7 +571,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CONDUIT = block(
       BattleBlockIDs.CONDUIT, "Conduit",
-      "Healing happens per turn.",
+      "None",
       0, false,
       0, false,
       7, true,
@@ -614,7 +614,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SMOOTH_STONE = block(
       BattleBlockIDs.SMOOTH_STONE, "Smooth Stone",
-      "Defence and defence damage happen per turn.",
+      "None",
       0, false,
       -1, true,
       0, false,
@@ -642,12 +642,12 @@ public class CreateBlocks {
 
   public static final BattleBlock GLASS = block(
       BattleBlockIDs.GLASS, "Glass",
-      "N/A stats treated as zero.",
+      "None",
       0, 0, 0, 0);
 
   public static final BattleBlock GLASS_PANE = block(
       BattleBlockIDs.GLASS_PANE, "Glass Pane",
-      "Damage, defence, and healing happen per turn.",
+      "None",
       0, true,
       0, true,
       0, true,
@@ -690,7 +690,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COPPER_BLOCK = block(
       BattleBlockIDs.COPPER_BLOCK, "Copper Block",
-      "Defence happens per turn.",
+      "None",
       0, false,
       0, true,
       0, false,
@@ -698,12 +698,12 @@ public class CreateBlocks {
 
   public static final BattleBlock CHISELED_COPPER = block(
       BattleBlockIDs.CHISELED_COPPER, "Chiseled Copper",
-      "Missing defence value treated as zero.",
+      "None",
       0, 0, 0, 0);
 
   public static final BattleBlock COPPER_GRATE = block(
       BattleBlockIDs.COPPER_GRATE, "Copper Grate",
-      "Damage happens per turn.",
+      "None",
       6, true,
       0, false,
       0, false,
@@ -711,7 +711,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COPPER_BULB = block(
       BattleBlockIDs.COPPER_BULB, "Copper Bulb",
-      "Healing happens per turn.",
+      "None",
       0, false,
       0, false,
       5, true,
@@ -719,7 +719,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COPPER_LANTERN = block(
       BattleBlockIDs.COPPER_LANTERN, "Copper Lantern",
-      "Missing values treated as zero.",
+      "None",
       0, 0, 0, 0);
 
   public static final BattleBlock OBSIDIAN = block(
@@ -739,7 +739,7 @@ public class CreateBlocks {
 
   public static final BattleBlock LAVA = block(
       BattleBlockIDs.LAVA, "Lava",
-      "Damage happens per turn.",
+      "None",
       2, true,
       0, false,
       0, false,
@@ -747,7 +747,7 @@ public class CreateBlocks {
 
   public static final BattleBlock TNT = block(
       BattleBlockIDs.TNT, "TNT",
-      "None",
+      "Breaks itself and the 4 adjacent blocks.",
       0, 0, 0, 0);
 
   public static final BattleBlock POINTED_DRIPSTONE = block(
@@ -777,7 +777,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CAKE = block(
       BattleBlockIDs.CAKE, "Cake",
-      "Healing happens per turn.",
+      "None",
       -10, false,
       0, false,
       12, true,
@@ -785,7 +785,7 @@ public class CreateBlocks {
 
   public static final BattleBlock MUSHROOM_STEM = block(
       BattleBlockIDs.MUSHROOM_STEM, "Mushroom Stem",
-      "Damage happens per turn.",
+      "None",
       6, true,
       0, false,
       0, false,
@@ -793,7 +793,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COCOA = block(
       BattleBlockIDs.COCOA, "Cocoa Beans",
-      "Healing happens per turn.",
+      "None",
       0, false,
       0, false,
       9, true,
@@ -801,7 +801,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SLIME_BLOCK = block(
       BattleBlockIDs.SLIME_BLOCK, "Slime Block",
-      "Damage happens per turn.",
+      "None",
       6, true,
       0, false,
       0, false,
@@ -824,7 +824,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SKELETON_SKULL = block(
       BattleBlockIDs.SKELETON_SKULL, "Skeleton Skull",
-      "Damage happens per turn.",
+      "None",
       18, true,
       0, false,
       -16, false,
@@ -837,7 +837,7 @@ public class CreateBlocks {
 
   public static final BattleBlock ZOMBIE_HEAD = block(
       BattleBlockIDs.ZOMBIE_HEAD, "Zombie Head",
-      "Damage happens per turn.",
+      "None",
       14, true,
       0, false,
       0, false,
@@ -870,7 +870,7 @@ public class CreateBlocks {
 
   public static final BattleBlock PALE_OAK_LOG = block(
       BattleBlockIDs.PALE_OAK_LOG, "Pale Oak Log",
-      "Damage and healing happen per turn.",
+      "None",
       10, true,
       0, false,
       -5, true,
