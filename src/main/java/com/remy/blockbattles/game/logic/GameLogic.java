@@ -97,8 +97,13 @@ public class GameLogic {
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos, TeamSide actingSide) {
-    registerPlacedBlock(battleBlock, level, pos, actingSide);
-    return onPlaceBattleBlock(battleBlock, actingSide);
+    boolean wasPlaced = onPlaceBattleBlock(battleBlock, actingSide);
+
+    if (wasPlaced) {
+      registerPlacedBlock(battleBlock, level, pos, actingSide);
+    }
+
+    return wasPlaced;
   }
 
   public BattleState getBattleState() {
