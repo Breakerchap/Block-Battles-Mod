@@ -10,11 +10,14 @@ import com.remy.blockbattles.game.logic.GameLogic;
 import com.remy.blockbattles.game.logic.TeamSide;
 import com.remy.blockbattles.game.gui.BattleDeckBuilderMenu;
 import com.remy.blockbattles.game.gui.BattleScoreboards;
+import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -35,6 +38,11 @@ public class BlockBattlesMod implements ModInitializer {
 
   @Override
   public void onInitialize() {
+    PayloadTypeRegistry.clientboundPlay().register(BattleBlockOutlinePayload.TYPE, BattleBlockOutlinePayload.CODEC);
+
+    ServerPlayConnectionEvents.JOIN.register((listener, sender, server) ->
+        GAME_LOGIC.syncTrackedBattleBlocks(listener.getPlayer()));
+
     CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
       registerCommand(dispatcher, "BB");
       registerCommand(dispatcher, "bb");
@@ -55,6 +63,7 @@ public class BlockBattlesMod implements ModInitializer {
               BattlePlayerTeams.ensureTeams(context.getSource().getServer());
               GAME_LOGIC.resetBattle();
               GAME_LOGIC.syncBattleHands(context.getSource().getServer());
+              GAME_LOGIC.syncTrackedBattleBlocks(context.getSource().getServer());
               BattleScoreboards.updateScoreboard(context.getSource().getServer(), BATTLE_STATE);
               context.getSource().sendSuccess(
                   () -> Component.literal("Block Battles has been reset to its default state."),
@@ -121,6 +130,7 @@ public class BlockBattlesMod implements ModInitializer {
 
     GAME_LOGIC.endTurn();
     GAME_LOGIC.syncBattleHands(source.getServer());
+    GAME_LOGIC.syncTrackedBattleBlocks(source.getServer());
     BattleScoreboards.updateScoreboard(source.getServer(), BATTLE_STATE);
 
     source.sendSuccess(

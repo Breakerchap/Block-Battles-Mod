@@ -78,6 +78,7 @@ public class PlaceBlockMixin {
 
     if (handled) {
       BlockBattlesMod.GAME_LOGIC.syncBattleHands(serverLevel.getServer());
+      BlockBattlesMod.GAME_LOGIC.syncTrackedBattleBlocks(serverLevel.getServer());
       BattleScoreboards.updateScoreboard(
           serverLevel.getServer(),
           BlockBattlesMod.BATTLE_STATE);

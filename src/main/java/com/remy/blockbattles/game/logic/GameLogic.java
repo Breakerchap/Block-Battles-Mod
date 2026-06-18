@@ -10,6 +10,7 @@ import com.remy.blockbattles.game.blocks.Classification;
 import com.remy.blockbattles.game.blocks.CreateBlocks;
 import com.remy.blockbattles.game.blocks.abilities.Abilities;
 import com.remy.blockbattles.game.gui.BattleCardItems;
+import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,8 +18,10 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 public class GameLogic {
   private final BattleState battleState;
@@ -820,6 +823,18 @@ public class GameLogic {
     BattleCardItems.syncHands(server, battleState);
   }
 
+  public void syncTrackedBattleBlocks(MinecraftServer server) {
+    BattleBlockOutlinePayload payload = createBattleBlockOutlinePayload();
+
+    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+      syncTrackedBattleBlocks(player, payload);
+    }
+  }
+
+  public void syncTrackedBattleBlocks(ServerPlayer player) {
+    syncTrackedBattleBlocks(player, createBattleBlockOutlinePayload());
+  }
+
   public void forceTurn(TeamSide side) {
     battleState.getRedTeam().clearHand();
     battleState.getBlueTeam().clearHand();
@@ -850,6 +865,34 @@ public class GameLogic {
     pendingMaxHealthGain = 0;
     pendingShieldGain = 0;
     pendingShieldDamage = 0;
+  }
+
+  private BattleBlockOutlinePayload createBattleBlockOutlinePayload() {
+    ArrayList<BattleBlockOutlinePayload.OutlinedBlock> outlinedBlocks = new ArrayList<>();
+    collectOutlinedBlocks(outlinedBlocks, battleState.getRedTeam());
+    collectOutlinedBlocks(outlinedBlocks, battleState.getBlueTeam());
+    return new BattleBlockOutlinePayload(outlinedBlocks);
+  }
+
+  private void collectOutlinedBlocks(
+      ArrayList<BattleBlockOutlinePayload.OutlinedBlock> outlinedBlocks,
+      BattleTeam ownerTeam) {
+    for (PlacedBattleBlock placedBlock : ownerTeam.getPlacedBlocks()) {
+      if (!placedBlock.stillExists()) {
+        continue;
+      }
+
+      outlinedBlocks.add(new BattleBlockOutlinePayload.OutlinedBlock(
+          placedBlock.level().dimension().identifier().toString(),
+          placedBlock.pos(),
+          ownerTeam.getSide()));
+    }
+  }
+
+  private void syncTrackedBattleBlocks(ServerPlayer player, BattleBlockOutlinePayload payload) {
+    if (ServerPlayNetworking.canSend(player, BattleBlockOutlinePayload.TYPE)) {
+      ServerPlayNetworking.send(player, payload);
+    }
   }
 
   int getPerTurnDamageAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
