@@ -132,6 +132,18 @@ public class BattleTeam {
     hand.clear();
   }
 
+  public void addCardToHand(BattleBlock battleBlock) {
+    hand.add(Objects.requireNonNull(battleBlock, "battleBlock"));
+  }
+
+  public boolean removeOneCardFromDrawPile(BattleBlock battleBlock) {
+    return drawPile.remove(Objects.requireNonNull(battleBlock, "battleBlock"));
+  }
+
+  public void shuffleDrawPile() {
+    Collections.shuffle(drawPile);
+  }
+
   public boolean hasCardInHand(String blockId) {
     return hand.stream().anyMatch(card -> card.id.getId().equals(blockId));
   }
@@ -295,9 +307,18 @@ public class BattleTeam {
     health = Math.min(health, maxHealth);
   }
 
+  public void setHealth(int health) {
+    this.health = Math.max(0, Math.min(health, maxHealth));
+  }
+
   public void increaseMaxHealth(int amount) {
     maxHealth = Math.max(0, maxHealth + amount);
     health = Math.min(health, maxHealth);
+  }
+
+  public void setMaxHealth(int maxHealth) {
+    this.maxHealth = Math.max(0, maxHealth);
+    health = Math.min(health, this.maxHealth);
   }
 
   public int takeHealthDamage(int amount) {
@@ -314,6 +335,10 @@ public class BattleTeam {
 
   public void gainShield(int amount) {
     shield = Math.max(0, shield + amount);
+  }
+
+  public void setShield(int shield) {
+    this.shield = Math.max(0, shield);
   }
 
   public void loseShield(int amount) {

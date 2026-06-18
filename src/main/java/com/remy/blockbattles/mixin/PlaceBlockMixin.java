@@ -30,6 +30,10 @@ public class PlaceBlockMixin {
       return;
     }
 
+    if (!BlockBattlesMod.GAME_LOGIC.isGameRunning()) {
+      return;
+    }
+
     TeamSide teamSide = BattlePlayerTeams.getTeamSide(context.getPlayer()).orElse(null);
     String blockIdString = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
 
@@ -60,6 +64,10 @@ public class PlaceBlockMixin {
     }
 
     if (!(context.getLevel() instanceof ServerLevel serverLevel)) {
+      return;
+    }
+
+    if (!BlockBattlesMod.GAME_LOGIC.isGameRunning()) {
       return;
     }
 

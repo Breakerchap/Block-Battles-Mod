@@ -60,7 +60,7 @@ public class BattleScoreboards {
         "bb_red_health",
         Component.literal("Red Health").withStyle(ChatFormatting.RED),
         redTeam.getHealth(),
-        5);
+        6);
 
     setScore(
         scoreboard,
@@ -68,7 +68,7 @@ public class BattleScoreboards {
         "bb_red_shield",
         Component.literal("Red Shield").withStyle(ChatFormatting.RED),
         redTeam.getShield(),
-        4);
+        5);
 
     setScore(
         scoreboard,
@@ -76,7 +76,7 @@ public class BattleScoreboards {
         "bb_blue_health",
         Component.literal("Blue Health").withStyle(ChatFormatting.BLUE),
         blueTeam.getHealth(),
-        3);
+        4);
 
     setScore(
         scoreboard,
@@ -84,6 +84,16 @@ public class BattleScoreboards {
         "bb_blue_shield",
         Component.literal("Blue Shield").withStyle(ChatFormatting.BLUE),
         blueTeam.getShield(),
+        3);
+
+    setTextLine(
+        scoreboard,
+        objective,
+        "bb_status",
+        Component.literal("Status: ")
+            .withStyle(ChatFormatting.WHITE)
+            .append(Component.literal(battleState.isGameRunning() ? "Running" : "Stopped")
+                .withStyle(battleState.isGameRunning() ? ChatFormatting.GREEN : ChatFormatting.GRAY)),
         2);
 
     setTextLine(

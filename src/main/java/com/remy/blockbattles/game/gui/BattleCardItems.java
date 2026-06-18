@@ -74,6 +74,10 @@ public final class BattleCardItems {
     for (ServerPlayer player : server.getPlayerList().getPlayers()) {
       clearBattleCards(player);
 
+      if (!battleState.isGameRunning()) {
+        continue;
+      }
+
       if (BattlePlayerTeams.getTeamSide(player).orElse(null) != activeSide) {
         continue;
       }

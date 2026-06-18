@@ -44,7 +44,15 @@ public class GameLogic {
     this.deckManager = new DeckManager();
   }
 
+  public boolean isGameRunning() {
+    return battleState.isGameRunning();
+  }
+
   public boolean canPlaceBattleBlock(String blockId, TeamSide actingSide) {
+    if (!battleState.isGameRunning()) {
+      return true;
+    }
+
     if (!isBattlePlacement(blockId)) {
       return true;
     }
@@ -257,6 +265,10 @@ public class GameLogic {
   }
 
   private boolean placeBattleBlock(BattleBlock battleBlock, TeamSide actingSide, ServerLevel level, BlockPos pos) {
+    if (!battleState.isGameRunning()) {
+      return false;
+    }
+
     if (!canPlaceBattleBlock(battleBlock.id.getId(), actingSide)) {
       return false;
     }
@@ -759,6 +771,10 @@ public class GameLogic {
   }
 
   public void endTurn(TeamSide actingSide) {
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
     TeamSide resolvedActingSide = resolveActingSide(actingSide);
     BattleTeam currentTeam = getTeamForTurn(resolvedActingSide);
     BattleTeam enemyTeam = getEnemyTeamForTurn(resolvedActingSide);
@@ -802,13 +818,34 @@ public class GameLogic {
     battleState.resetForNewBattle();
     battleState.getRedTeam().clearHand();
     battleState.getBlueTeam().clearHand();
+
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
     battleState.getActiveTeam().activateQueuedTurnEffects();
     drawHandForTeam(battleState.getActiveTeam());
+  }
+
+  public void startGame() {
+    battleState.setGameRunning(true);
+    resetBattle();
+  }
+
+  public void endGame() {
+    battleState.setGameRunning(false);
+    resetBattle();
   }
 
   public void updateConfiguredDeck(TeamSide side, java.util.List<BattleBlock> deck) {
     battleState.setConfiguredDeck(side, deck);
     battleState.applyConfiguredDeck(side);
+
+    if (!battleState.isGameRunning()) {
+      battleState.getRedTeam().clearHand();
+      battleState.getBlueTeam().clearHand();
+      return;
+    }
 
     if (battleState.getActiveSide() == side) {
       battleState.getOpponentOf(side).clearHand();
@@ -836,6 +873,10 @@ public class GameLogic {
   }
 
   public void forceTurn(TeamSide side) {
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
     battleState.getRedTeam().clearHand();
     battleState.getBlueTeam().clearHand();
     battleState.getRedTeam().clearActiveTurnEffects();
@@ -846,7 +887,48 @@ public class GameLogic {
   }
 
   public void redrawActiveHand() {
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
     drawHandForTeam(battleState.getActiveTeam());
+  }
+
+  public void setTeamHealth(TeamSide side, int health) {
+    battleState.getTeam(side).setHealth(health);
+  }
+
+  public void setTeamMaxHealth(TeamSide side, int maxHealth) {
+    battleState.getTeam(side).setMaxHealth(maxHealth);
+  }
+
+  public void setTeamShield(TeamSide side, int shield) {
+    battleState.getTeam(side).setShield(shield);
+  }
+
+  public void drawCardsForTeam(TeamSide side, int amount) {
+    deckManager.dealCards(battleState.getTeam(side), Math.max(0, amount));
+  }
+
+  public void addCardToHand(TeamSide side, BattleBlock battleBlock) {
+    BattleTeam team = battleState.getTeam(side);
+
+    if (!team.removeOneCardFromDrawPile(battleBlock)) {
+      team.addCardToHand(battleBlock);
+      return;
+    }
+
+    team.addCardToHand(battleBlock);
+  }
+
+  public void clearHand(TeamSide side) {
+    battleState.getTeam(side).clearHand();
+  }
+
+  public void refillDrawPile(TeamSide side) {
+    BattleTeam team = battleState.getTeam(side);
+    team.refillDrawPile();
+    team.shuffleDrawPile();
   }
 
   private void drawHandForTeam(BattleTeam team) {
@@ -951,11 +1033,19 @@ public class GameLogic {
   }
 
   public boolean canBreakBattleBlock(ServerLevel level, BlockPos pos) {
+    if (!battleState.isGameRunning()) {
+      return true;
+    }
+
     OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
     return trackedBlock == null || !isUnbreakableBattleBlock(trackedBlock.placedBlock().battleBlock().id);
   }
 
   public void onBattleBlockBroken(ServerLevel level, BlockPos pos) {
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
     OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
 
     if (trackedBlock == null) {
@@ -1093,11 +1183,19 @@ public class GameLogic {
   }
 
   public void onAnyBlockPlaced(ServerLevel level, BlockPos pos) {
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
     triggerCalibratedSculkSensors(level, pos);
     triggerSculkShriekers(level, pos);
   }
 
   public void onAnyBlockBroken(ServerLevel level, BlockPos pos) {
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
     triggerSculkSensors(level, pos);
     triggerSculkCatalysts(level, pos);
     triggerSculkShriekers(level, pos);

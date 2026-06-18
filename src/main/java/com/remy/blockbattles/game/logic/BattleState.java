@@ -18,6 +18,7 @@ public class BattleState {
   private final ArrayList<BattleBlock> redConfiguredDeck = new ArrayList<>();
   private final ArrayList<BattleBlock> blueConfiguredDeck = new ArrayList<>();
   private TeamSide activeSide = TeamSide.RED;
+  private boolean gameRunning;
 
   private BattleState() {
     redConfiguredDeck.addAll(createRedStartingDeck());
@@ -51,6 +52,10 @@ public class BattleState {
     return activeSide;
   }
 
+  public boolean isGameRunning() {
+    return gameRunning;
+  }
+
   public BattleTeam getActiveTeam() {
     return getTeam(activeSide);
   }
@@ -69,6 +74,10 @@ public class BattleState {
 
   public void setActiveSide(TeamSide side) {
     activeSide = side;
+  }
+
+  public void setGameRunning(boolean gameRunning) {
+    this.gameRunning = gameRunning;
   }
 
   public void clearPlacedBlocks() {

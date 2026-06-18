@@ -20,6 +20,10 @@ public class BreakBlockMixin {
 
   @Inject(method = "destroyBlock", at = @At("HEAD"), cancellable = true)
   private void blockBattles$beforeDestroyBlock(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+    if (!BlockBattlesMod.GAME_LOGIC.isGameRunning()) {
+      return;
+    }
+
     if (!BlockBattlesMod.GAME_LOGIC.canBreakBattleBlock(level, pos)) {
       cir.setReturnValue(false);
     }
@@ -28,6 +32,10 @@ public class BreakBlockMixin {
   @Inject(method = "destroyBlock", at = @At("RETURN"))
   private void blockBattles$afterDestroyBlock(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
     if (!cir.getReturnValue()) {
+      return;
+    }
+
+    if (!BlockBattlesMod.GAME_LOGIC.isGameRunning()) {
       return;
     }
 
