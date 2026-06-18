@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.TeamColor;
 
 public final class BattlePlayerTeams {
   private static final String RED_TEAM_NAME = "Red";
@@ -64,7 +65,7 @@ public final class BattlePlayerTeams {
     }
 
     team.setDisplayName(Component.literal(teamName).withStyle(getColor(side)));
-    team.setColor(getColor(side));
+    team.setColor(Optional.of(getTeamColor(side)));
     return team;
   }
 
@@ -86,5 +87,9 @@ public final class BattlePlayerTeams {
 
   private static ChatFormatting getColor(TeamSide side) {
     return side == TeamSide.RED ? ChatFormatting.RED : ChatFormatting.BLUE;
+  }
+
+  private static TeamColor getTeamColor(TeamSide side) {
+    return side == TeamSide.RED ? TeamColor.RED : TeamColor.BLUE;
   }
 }

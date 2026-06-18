@@ -17,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -211,7 +212,7 @@ public class BattleDeckBuilderMenu extends ChestMenu {
 
   private ItemStack createDeckSlotPlaceholder(int slot) {
     return BattleCardItems.createNamedItem(
-        Items.LIGHT_GRAY_STAINED_GLASS_PANE,
+        Items.STAINED_GLASS_PANE.pick(DyeColor.LIGHT_GRAY),
         Component.literal("Deck Slot " + (slot + 1)).withStyle(ChatFormatting.DARK_GRAY),
         List.of(Component.literal("Choose 12 blocks to save this deck.").withStyle(ChatFormatting.GRAY)));
   }
