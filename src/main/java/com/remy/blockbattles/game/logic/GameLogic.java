@@ -11,6 +11,7 @@ import com.remy.blockbattles.game.blocks.abilities.Abilities;
 import com.remy.blockbattles.game.gui.BattleCardItems;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
@@ -23,6 +24,7 @@ public class GameLogic {
   private int pendingDamage;
   private int pendingDirectHealthDamage;
   private int pendingHealing;
+  private int pendingMaxHealthGain;
   private int pendingShieldGain;
   private int pendingShieldDamage;
 
@@ -104,7 +106,7 @@ public class GameLogic {
     switch (battleBlock.id) {
       case TNT -> {
         if (level != null && pos != null) {
-          Abilities.tntAbility(level, pos, currentTeam.getSide());
+          breakBlocksAround(level, pos);
         }
 
         return null;
@@ -115,9 +117,20 @@ public class GameLogic {
       case CORNFLOWER -> {
         queueHealingSource(currentTeam, currentTeam.getHealth() / 4, true);
       }
+      case PINK_PETALS -> currentTeam.queueHealingAlsoIncreasesMaxHealth();
       case CHERRY_LEAVES -> {
         queueHealingSource(currentTeam, currentTeam.getMaxHealth() / 10, true);
       }
+      case NETHERRACK -> {
+        queueDamageSource(currentTeam, currentTeam.getLastDamageDealt(), true);
+      }
+      case VAULT -> {
+        if (currentTeam.removeOneCardFromDeck(CreateBlocks.VAULT)) {
+          queueShieldSource(currentTeam, 8, true);
+          queueHealingSource(currentTeam, 8, true);
+        }
+      }
+      case SCULK -> enemyTeam.increaseMaxHealth(-2);
       case LAPIS_BLOCK -> {
         queueHealingSource(currentTeam, (currentTeam.getHealth() + 1) / 2, true);
         currentTeam.replaceOneCardInDeck(CreateBlocks.LAPIS_BLOCK, CreateBlocks.DIRT);
@@ -158,6 +171,12 @@ public class GameLogic {
       case RAW_IRON_BLOCK -> currentTeam.queueTurnDamage(30);
       case RAW_GOLD_BLOCK -> currentTeam.queueTurnShieldGain(6);
       case RAW_COPPER_BLOCK -> currentTeam.queueTurnHealing(26);
+      case POINTED_DRIPSTONE -> {
+        if (level != null && pos != null && Abilities.isPointedDripstoneUpsideDown(level, pos)) {
+          queueDamageSource(currentTeam, 8, true);
+        }
+      }
+      case SOUL_SAND -> enemyTeam.queueTurnDrawModifier(-1);
       default -> {
       }
     }
@@ -175,17 +194,18 @@ public class GameLogic {
     BattleTeam enemyTeam = getEnemyTeamForTurn(resolvedActingSide);
     BattleBlock placedBlock = applyOnPlaceAbility(battleBlock, currentTeam, enemyTeam, level, pos);
 
-    queueImmediateBlockEffects(battleBlock, currentTeam, enemyTeam);
+    queueImmediateBlockEffects(battleBlock, currentTeam);
+
+    endTurn(resolvedActingSide);
 
     if (level != null && pos != null && placedBlock != null) {
       registerPlacedBlock(placedBlock, level, pos, resolvedActingSide);
     }
 
-    endTurn(resolvedActingSide);
     return true;
   }
 
-  private void queueImmediateBlockEffects(BattleBlock battleBlock, BattleTeam currentTeam, BattleTeam enemyTeam) {
+  private void queueImmediateBlockEffects(BattleBlock battleBlock, BattleTeam currentTeam) {
     if (!battleBlock.damagePerTurn && battleBlock.damage != 0) {
       if (battleBlock.id == BattleBlockIDs.SOUL_LANTERN) {
         queueDirectHealthDamageSource(currentTeam, battleBlock.damage, false);
@@ -232,7 +252,12 @@ public class GameLogic {
 
   private void queueHealingSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      pendingHealing += amount + currentTeam.getActiveTurnHealingBonus();
+      int totalHealing = amount + currentTeam.getActiveTurnHealingBonus();
+      pendingHealing += totalHealing;
+
+      if (currentTeam.isActiveHealingAlsoIncreasesMaxHealth() && totalHealing > 0) {
+        pendingMaxHealthGain += totalHealing;
+      }
     }
   }
 
@@ -267,6 +292,7 @@ public class GameLogic {
       PlacedBattleBlock placedBlock = iterator.next();
 
       if (!placedBlock.stillExists()) {
+        handleBrokenPlacedBlock(currentTeam, enemyTeam, placedBlock);
         iterator.remove();
         continue;
       }
@@ -274,28 +300,33 @@ public class GameLogic {
       BattleBlock battleBlock = placedBlock.battleBlock();
 
       if (battleBlock.damagePerTurn) {
-        queueDamageSource(currentTeam, getPerTurnDamageAmount(battleBlock, currentTeam), false);
+        queueDamageSource(currentTeam, getPerTurnDamageAmount(placedBlock, currentTeam), false);
       }
 
       if (battleBlock.healingPerTurn) {
-        queueHealingSource(currentTeam, battleBlock.healing, false);
+        queueHealingSource(currentTeam, getPerTurnHealingAmount(placedBlock), false);
       }
 
       if (battleBlock.defencePerTurn) {
-        queueShieldSource(currentTeam, battleBlock.defence, false);
+        queueShieldSource(currentTeam, getPerTurnShieldAmount(placedBlock), false);
       }
 
       if (battleBlock.defenceDamagePerTurn) {
         pendingShieldDamage += battleBlock.defenceDamage;
       }
 
-      applyPerTurnAbility(placedBlock, grownBlocks);
+      applyPerTurnAbility(currentTeam, enemyTeam, placedBlock, iterator, grownBlocks);
     }
 
     grownBlocks.forEach(currentTeam::addPlacedBlock);
   }
 
-  private void applyPerTurnAbility(PlacedBattleBlock placedBlock, ArrayList<PlacedBattleBlock> grownBlocks) {
+  private void applyPerTurnAbility(
+      BattleTeam currentTeam,
+      BattleTeam enemyTeam,
+      PlacedBattleBlock placedBlock,
+      Iterator<PlacedBattleBlock> iterator,
+      ArrayList<PlacedBattleBlock> grownBlocks) {
     switch (placedBlock.battleBlock().id) {
       case CHERRY_LOG, JUNGLE_LOG -> {
         if (Abilities.growBlockUpwardIfAir(placedBlock.level(), placedBlock.pos())) {
@@ -303,6 +334,13 @@ public class GameLogic {
               placedBlock.level(),
               placedBlock.pos().above(),
               placedBlock.battleBlock()));
+        }
+      }
+      case DRAGON_EGG -> {
+        if (placedBlock.advanceOwnerTurnCount() >= 2) {
+          queueHealingSource(currentTeam, 32, true);
+          iterator.remove();
+          placedBlock.level().setBlock(placedBlock.pos(), Blocks.AIR.defaultBlockState(), 3);
         }
       }
       default -> {
@@ -335,6 +373,7 @@ public class GameLogic {
       PlacedBattleBlock placedBlock = iterator.next();
 
       if (!placedBlock.stillExists()) {
+        handleBrokenPlacedBlock(team, battleState.getOpponentOf(team.getSide()), placedBlock);
         iterator.remove();
         continue;
       }
@@ -359,17 +398,25 @@ public class GameLogic {
     queuePerTurnEffects(currentTeam, enemyTeam);
     queueQueuedTurnEffects(currentTeam);
 
+    if (pendingMaxHealthGain > 0) {
+      currentTeam.increaseMaxHealth(pendingMaxHealthGain);
+    }
+
     currentTeam.heal(pendingHealing);
     currentTeam.gainShield(pendingShieldGain);
+
+    int actualDamageDealt = 0;
 
     if (enemyTeam.consumeIgnoreNextIncomingDamage()) {
       pendingDamage = 0;
       pendingDirectHealthDamage = 0;
     }
 
-    enemyTeam.takeHealthDamage(pendingDamage);
-    enemyTeam.takeDirectHealthDamage(pendingDirectHealthDamage);
+    actualDamageDealt += enemyTeam.takeHealthDamage(pendingDamage);
+    actualDamageDealt += enemyTeam.takeDirectHealthDamage(pendingDirectHealthDamage);
     enemyTeam.loseShield(pendingShieldDamage);
+    currentTeam.recordLastDamageDealt(actualDamageDealt);
+    applyNetherGoldOreRetaliation(enemyTeam, actualDamageDealt);
 
     currentTeam.clearActiveTurnEffects();
     clearPendingEffects();
@@ -422,15 +469,26 @@ public class GameLogic {
 
   private void drawHandForTeam(BattleTeam team) {
     team.clearHand();
-    deckManager.dealCards(team, BattleCardItems.HAND_SIZE);
+    deckManager.dealCards(team, Math.max(0,
+        BattleCardItems.HAND_SIZE
+            + team.getActiveTurnDrawModifier()
+            + countBlocksOnBoard(team, BattleBlockIDs.SHULKER_BOX)));
   }
 
   private void clearPendingEffects() {
     pendingDamage = 0;
     pendingDirectHealthDamage = 0;
     pendingHealing = 0;
+    pendingMaxHealthGain = 0;
     pendingShieldGain = 0;
     pendingShieldDamage = 0;
+  }
+
+  int getPerTurnDamageAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
+    return applyCarpetModifier(
+        placedBlock,
+        getPerTurnDamageAmount(placedBlock.battleBlock(), currentTeam),
+        BattleBlockIDs.RED_CARPET);
   }
 
   int getPerTurnDamageAmount(BattleBlock battleBlock, BattleTeam currentTeam) {
@@ -441,5 +499,183 @@ public class GameLogic {
     }
 
     return damageAmount;
+  }
+
+  private int getPerTurnHealingAmount(PlacedBattleBlock placedBlock) {
+    return applyCarpetModifier(placedBlock, placedBlock.battleBlock().healing, BattleBlockIDs.GREEN_CARPET);
+  }
+
+  private int getPerTurnShieldAmount(PlacedBattleBlock placedBlock) {
+    return applyCarpetModifier(placedBlock, placedBlock.battleBlock().defence, BattleBlockIDs.BLUE_CARPET);
+  }
+
+  private int applyCarpetModifier(PlacedBattleBlock placedBlock, int amount, BattleBlockIDs carpetId) {
+    if (amount == 0) {
+      return 0;
+    }
+
+    BlockPos abovePos = placedBlock.pos().above();
+    String blockId = BuiltInRegistries.BLOCK.getKey(placedBlock.level().getBlockState(abovePos).getBlock()).toString();
+    return blockId.equals(carpetId.getId()) ? amount * 2 : amount;
+  }
+
+  public boolean canBreakBattleBlock(ServerLevel level, BlockPos pos) {
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
+    return trackedBlock == null || trackedBlock.placedBlock().battleBlock().id != BattleBlockIDs.ANCIENT_DEBRIS;
+  }
+
+  public void onBattleBlockBroken(ServerLevel level, BlockPos pos) {
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
+
+    if (trackedBlock == null) {
+      return;
+    }
+
+    trackedBlock.ownerTeam().getPlacedBlocks().remove(trackedBlock.placedBlock());
+    handleBrokenPlacedBlock(
+        trackedBlock.ownerTeam(),
+        battleState.getOpponentOf(trackedBlock.ownerTeam().getSide()),
+        trackedBlock.placedBlock());
+  }
+
+  private void breakBlocksAround(ServerLevel level, BlockPos pos) {
+    breakBattleBlockAt(level, pos.north());
+    breakBattleBlockAt(level, pos.south());
+    breakBattleBlockAt(level, pos.east());
+    breakBattleBlockAt(level, pos.west());
+    breakBattleBlockAt(level, pos);
+  }
+
+  private void breakBattleBlockAt(ServerLevel level, BlockPos pos) {
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
+
+    if (trackedBlock != null && trackedBlock.placedBlock().battleBlock().id == BattleBlockIDs.ANCIENT_DEBRIS) {
+      return;
+    }
+
+    if (trackedBlock != null) {
+      trackedBlock.ownerTeam().getPlacedBlocks().remove(trackedBlock.placedBlock());
+      handleBrokenPlacedBlock(
+          trackedBlock.ownerTeam(),
+          battleState.getOpponentOf(trackedBlock.ownerTeam().getSide()),
+          trackedBlock.placedBlock());
+    }
+
+    level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+  }
+
+  private void handleBrokenPlacedBlock(BattleTeam ownerTeam, BattleTeam enemyTeam, PlacedBattleBlock placedBlock) {
+    switch (placedBlock.battleBlock().id) {
+      case NETHER_QUARTZ_ORE -> dealImmediateDamage(ownerTeam, enemyTeam, 7);
+      case ANCIENT_DEBRIS -> dealImmediateDamage(ownerTeam, enemyTeam, 50);
+      default -> {
+      }
+    }
+
+    if (isGoldenBlock(placedBlock.battleBlock().id)) {
+      triggerPiglinHeadBrokenGoldAbility(placedBlock.level(), placedBlock.pos());
+    }
+  }
+
+  private void triggerPiglinHeadBrokenGoldAbility(ServerLevel level, BlockPos brokenBlockPos) {
+    for (BattleTeam team : java.util.List.of(battleState.getRedTeam(), battleState.getBlueTeam())) {
+      Iterator<PlacedBattleBlock> iterator = team.getPlacedBlocks().iterator();
+
+      while (iterator.hasNext()) {
+        PlacedBattleBlock placedBlock = iterator.next();
+
+        if (!placedBlock.stillExists()) {
+          handleBrokenPlacedBlock(team, battleState.getOpponentOf(team.getSide()), placedBlock);
+          iterator.remove();
+          continue;
+        }
+
+        if (placedBlock.battleBlock().id != BattleBlockIDs.PIGLIN_HEAD) {
+          continue;
+        }
+
+        if (placedBlock.level() != level) {
+          continue;
+        }
+
+        if (!areAdjacent(placedBlock.pos(), brokenBlockPos)) {
+          continue;
+        }
+
+        BattleTeam enemyTeam = battleState.getOpponentOf(team.getSide());
+        team.gainShield(4);
+        team.heal(10);
+        dealImmediateDamage(team, enemyTeam, 10);
+      }
+    }
+  }
+
+  private boolean areAdjacent(BlockPos firstPos, BlockPos secondPos) {
+    return firstPos.distManhattan(secondPos) == 1;
+  }
+
+  private void dealImmediateDamage(BattleTeam attackingTeam, BattleTeam defendingTeam, int amount) {
+    int actualDamageDealt = defendingTeam.takeHealthDamage(amount);
+    attackingTeam.recordLastDamageDealt(actualDamageDealt);
+    applyNetherGoldOreRetaliation(defendingTeam, actualDamageDealt);
+  }
+
+  private void applyNetherGoldOreRetaliation(BattleTeam damagedTeam, int actualDamageDealt) {
+    if (actualDamageDealt <= 0) {
+      return;
+    }
+
+    damagedTeam.gainShield(countBlocksOnBoard(damagedTeam, BattleBlockIDs.NETHER_GOLD_ORE));
+  }
+
+  private int countBlocksOnBoard(BattleTeam team, BattleBlockIDs battleBlockId) {
+    int count = 0;
+    Iterator<PlacedBattleBlock> iterator = team.getPlacedBlocks().iterator();
+
+    while (iterator.hasNext()) {
+      PlacedBattleBlock placedBlock = iterator.next();
+
+      if (!placedBlock.stillExists()) {
+        handleBrokenPlacedBlock(team, battleState.getOpponentOf(team.getSide()), placedBlock);
+        iterator.remove();
+        continue;
+      }
+
+      if (placedBlock.battleBlock().id == battleBlockId) {
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  private boolean isGoldenBlock(BattleBlockIDs battleBlockId) {
+    return switch (battleBlockId) {
+      case GOLD_BLOCK, RAW_GOLD_BLOCK, NETHER_GOLD_ORE, DEEPSLATE_GOLD_ORE -> true;
+      default -> false;
+    };
+  }
+
+  private OwnedPlacedBattleBlock findTrackedBlock(ServerLevel level, BlockPos pos) {
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(battleState.getRedTeam(), level, pos);
+
+    if (trackedBlock != null) {
+      return trackedBlock;
+    }
+
+    return findTrackedBlock(battleState.getBlueTeam(), level, pos);
+  }
+
+  private OwnedPlacedBattleBlock findTrackedBlock(BattleTeam team, ServerLevel level, BlockPos pos) {
+    for (PlacedBattleBlock placedBlock : team.getPlacedBlocks()) {
+      if (placedBlock.level() == level && placedBlock.pos().equals(pos)) {
+        return new OwnedPlacedBattleBlock(team, placedBlock);
+      }
+    }
+
+    return null;
+  }
+
+  private record OwnedPlacedBattleBlock(BattleTeam ownerTeam, PlacedBattleBlock placedBlock) {
   }
 }

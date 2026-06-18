@@ -17,16 +17,21 @@ public class BattleTeam {
   private int queuedTurnDamageBonus;
   private int queuedTurnHealingBonus;
   private int queuedTurnShieldBonus;
+  private int queuedTurnDrawModifier;
   private int queuedTurnDamage;
   private int queuedTurnHealing;
   private int queuedTurnShieldGain;
   private boolean ignoreNextIncomingDamage;
+  private boolean queuedHealingAlsoIncreasesMaxHealth;
   private int activeTurnDamageBonus;
   private int activeTurnHealingBonus;
   private int activeTurnShieldBonus;
+  private int activeTurnDrawModifier;
   private int activeTurnDamage;
   private int activeTurnHealing;
   private int activeTurnShieldGain;
+  private boolean activeHealingAlsoIncreasesMaxHealth;
+  private int lastDamageDealt;
   private final ArrayList<BattleBlock> hand = new ArrayList<>();
   private final ArrayList<BattleBlock> startingDeck = new ArrayList<>();
   private final ArrayList<BattleBlock> drawPile = new ArrayList<>();
@@ -97,6 +102,7 @@ public class BattleTeam {
     maxHealth = startingHealth;
     health = maxHealth;
     shield = startingShield;
+    lastDamageDealt = 0;
     clearQueuedTurnEffects();
     clearActiveTurnEffects();
     hand.clear();
@@ -136,6 +142,19 @@ public class BattleTeam {
     }
   }
 
+  public boolean removeOneCardFromDeck(BattleBlock battleBlock) {
+    Objects.requireNonNull(battleBlock, "battleBlock");
+
+    boolean removedFromDeck = startingDeck.remove(battleBlock);
+
+    if (!removedFromDeck) {
+      return false;
+    }
+
+    drawPile.remove(battleBlock);
+    return true;
+  }
+
   public void queueTurnDamageBonus(int amount) {
     queuedTurnDamageBonus += amount;
   }
@@ -146,6 +165,10 @@ public class BattleTeam {
 
   public void queueTurnShieldBonus(int amount) {
     queuedTurnShieldBonus += amount;
+  }
+
+  public void queueTurnDrawModifier(int amount) {
+    queuedTurnDrawModifier += amount;
   }
 
   public void queueTurnDamage(int amount) {
@@ -164,6 +187,10 @@ public class BattleTeam {
     ignoreNextIncomingDamage = true;
   }
 
+  public void queueHealingAlsoIncreasesMaxHealth() {
+    queuedHealingAlsoIncreasesMaxHealth = true;
+  }
+
   public boolean consumeIgnoreNextIncomingDamage() {
     boolean shouldIgnore = ignoreNextIncomingDamage;
     ignoreNextIncomingDamage = false;
@@ -174,9 +201,11 @@ public class BattleTeam {
     activeTurnDamageBonus += queuedTurnDamageBonus;
     activeTurnHealingBonus += queuedTurnHealingBonus;
     activeTurnShieldBonus += queuedTurnShieldBonus;
+    activeTurnDrawModifier += queuedTurnDrawModifier;
     activeTurnDamage += queuedTurnDamage;
     activeTurnHealing += queuedTurnHealing;
     activeTurnShieldGain += queuedTurnShieldGain;
+    activeHealingAlsoIncreasesMaxHealth |= queuedHealingAlsoIncreasesMaxHealth;
     clearQueuedTurnEffects();
   }
 
@@ -190,6 +219,24 @@ public class BattleTeam {
 
   public int getActiveTurnShieldBonus() {
     return activeTurnShieldBonus;
+  }
+
+  public int getActiveTurnDrawModifier() {
+    return activeTurnDrawModifier;
+  }
+
+  public boolean isActiveHealingAlsoIncreasesMaxHealth() {
+    return activeHealingAlsoIncreasesMaxHealth;
+  }
+
+  public int getLastDamageDealt() {
+    return lastDamageDealt;
+  }
+
+  public void recordLastDamageDealt(int amount) {
+    if (amount > 0) {
+      lastDamageDealt = amount;
+    }
   }
 
   public int consumeActiveTurnDamage() {
@@ -214,19 +261,23 @@ public class BattleTeam {
     activeTurnDamageBonus = 0;
     activeTurnHealingBonus = 0;
     activeTurnShieldBonus = 0;
+    activeTurnDrawModifier = 0;
     activeTurnDamage = 0;
     activeTurnHealing = 0;
     activeTurnShieldGain = 0;
+    activeHealingAlsoIncreasesMaxHealth = false;
   }
 
   public void clearQueuedTurnEffects() {
     queuedTurnDamageBonus = 0;
     queuedTurnHealingBonus = 0;
     queuedTurnShieldBonus = 0;
+    queuedTurnDrawModifier = 0;
     queuedTurnDamage = 0;
     queuedTurnHealing = 0;
     queuedTurnShieldGain = 0;
     ignoreNextIncomingDamage = false;
+    queuedHealingAlsoIncreasesMaxHealth = false;
   }
 
   public void heal(int amount) {
@@ -239,12 +290,16 @@ public class BattleTeam {
     health = Math.min(health, maxHealth);
   }
 
-  public void takeHealthDamage(int amount) {
-    health -= Math.max(0, amount - shield);
+  public int takeHealthDamage(int amount) {
+    int actualDamage = Math.max(0, amount - shield);
+    health -= actualDamage;
+    return actualDamage;
   }
 
-  public void takeDirectHealthDamage(int amount) {
-    health -= Math.max(0, amount);
+  public int takeDirectHealthDamage(int amount) {
+    int actualDamage = Math.max(0, amount);
+    health -= actualDamage;
+    return actualDamage;
   }
 
   public void gainShield(int amount) {

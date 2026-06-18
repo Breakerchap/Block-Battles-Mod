@@ -63,7 +63,7 @@ public class PlaceBlockMixin {
       return;
     }
 
-    BlockPos pos = context.getClickedPos();
+    BlockPos pos = blockBattles$resolvePlacedPos(context, state);
 
     var blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
     String blockIdString = blockId.toString();
@@ -80,5 +80,21 @@ public class PlaceBlockMixin {
           serverLevel.getServer(),
           BlockBattlesMod.BATTLE_STATE);
     }
+  }
+
+  private static BlockPos blockBattles$resolvePlacedPos(BlockPlaceContext context, BlockState state) {
+    BlockPos clickedPos = context.getClickedPos();
+
+    if (context.getLevel().getBlockState(clickedPos).is(state.getBlock())) {
+      return clickedPos;
+    }
+
+    BlockPos adjacentPos = clickedPos.relative(context.getClickedFace());
+
+    if (context.getLevel().getBlockState(adjacentPos).is(state.getBlock())) {
+      return adjacentPos;
+    }
+
+    return clickedPos;
   }
 }

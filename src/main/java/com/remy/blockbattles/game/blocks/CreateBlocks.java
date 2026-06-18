@@ -181,7 +181,7 @@ public class CreateBlocks {
 
   public static final BattleBlock PINK_PETALS = block(
       BattleBlockIDs.PINK_PETALS, "Pink Petals",
-      "None",
+      "All healing on your next turn increases your max health as well.",
       0, 0, 10, 0);
 
   public static final BattleBlock TORCHFLOWER = block(
@@ -262,17 +262,17 @@ public class CreateBlocks {
 
   public static final BattleBlock NETHERRACK = block(
       BattleBlockIDs.NETHERRACK, "Netherrack",
-      "None",
+      "Deal the last amount of damage you dealt.",
       0, 0, 0, 0);
 
   public static final BattleBlock NETHER_GOLD_ORE = block(
       BattleBlockIDs.NETHER_GOLD_ORE, "Nether Gold Ore",
-      "None",
+      "Each time you take damage, gain 1 defence. This does not affect the activating damage.",
       0, 0, 0, 0);
 
   public static final BattleBlock NETHER_QUARTZ_ORE = block(
       BattleBlockIDs.NETHER_QUARTZ_ORE, "Nether Quartz Ore",
-      "None",
+      "If broken, deal 7 damage to your opponent.",
       16, 0, 0, 0);
 
   public static final BattleBlock CRIMSON_NYLIUM = block(
@@ -303,7 +303,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SOUL_SAND = block(
       BattleBlockIDs.SOUL_SAND, "Soul Sand",
-      "None",
+      "Your opponent draws 1 less block on their next turn.",
       12, 0, 2, 0);
 
   public static final BattleBlock GLOWSTONE = block(
@@ -373,7 +373,7 @@ public class CreateBlocks {
 
   public static final BattleBlock ANCIENT_DEBRIS = block(
       BattleBlockIDs.ANCIENT_DEBRIS, "Ancient Debris",
-      "None",
+      "Unbreakable. If broken, deal 50 damage to your opponent.",
       0, 3, 3, 0);
 
   public static final BattleBlock NETHERITE_BLOCK = block(
@@ -396,7 +396,7 @@ public class CreateBlocks {
 
   public static final BattleBlock DRAGON_EGG = block(
       BattleBlockIDs.DRAGON_EGG, "Dragon Egg",
-      "None",
+      "After 2 turns, heal 32 health and the egg breaks.",
       0, 0, 0, 0);
 
   public static final BattleBlock FURNACE = block(
@@ -546,7 +546,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SCULK = block(
       BattleBlockIDs.SCULK, "Sculk",
-      "None",
+      "Lower your opponent's max health by 2.",
       0, 0, 0, 0);
 
   public static final BattleBlock CHISELED_BOOKSHELF = block(
@@ -561,12 +561,12 @@ public class CreateBlocks {
 
   public static final BattleBlock SHULKER_BOX = block(
       BattleBlockIDs.SHULKER_BOX, "Shulker Box",
-      "None",
+      "Draw another block each turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock VAULT = block(
       BattleBlockIDs.VAULT, "Vault",
-      "None",
+      "Remove this Vault from your deck to gain 8 defence and 8 healing.",
       0, 0, 0, 0);
 
   public static final BattleBlock CONDUIT = block(
@@ -752,22 +752,22 @@ public class CreateBlocks {
 
   public static final BattleBlock POINTED_DRIPSTONE = block(
       BattleBlockIDs.POINTED_DRIPSTONE, "Pointed Dripstone",
-      "None",
+      "Deals +8 damage if placed upside down.",
       6, 0, 0, 0);
 
   public static final BattleBlock RED_CARPET = block(
       BattleBlockIDs.RED_CARPET, "Red Carpet",
-      "None",
+      "Doubles damage of the block underneath.",
       0, 0, 0, 0);
 
   public static final BattleBlock BLUE_CARPET = block(
       BattleBlockIDs.BLUE_CARPET, "Blue Carpet",
-      "None",
+      "Doubles defence of the block underneath.",
       0, 0, 0, 0);
 
   public static final BattleBlock GREEN_CARPET = block(
       BattleBlockIDs.GREEN_CARPET, "Green Carpet",
-      "None",
+      "Doubles healing of the block underneath.",
       0, 0, 0, 0);
 
   public static final BattleBlock RED_BED = block(
@@ -819,7 +819,7 @@ public class CreateBlocks {
 
   public static final BattleBlock PIGLIN_HEAD = block(
       BattleBlockIDs.PIGLIN_HEAD, "Piglin Head",
-      "None",
+      "If a golden block is broken adjacent to this, gain 4 defence and 10 healing, and deal 10 damage to your opponent.",
       10, 0, 0, 0);
 
   public static final BattleBlock SKELETON_SKULL = block(

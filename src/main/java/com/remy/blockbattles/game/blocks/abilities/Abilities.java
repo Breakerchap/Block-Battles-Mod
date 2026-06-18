@@ -5,6 +5,8 @@ import com.remy.blockbattles.game.logic.BattleTeam;
 import com.remy.blockbattles.game.logic.TeamSide;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.PointedDripstoneBlock;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -42,5 +44,13 @@ public class Abilities {
     }
 
     return level.setBlock(abovePos, level.getBlockState(pos), 3);
+  }
+
+  public static boolean isPointedDripstoneUpsideDown(ServerLevel level, BlockPos pos) {
+    if (!(level.getBlockState(pos).getBlock() instanceof PointedDripstoneBlock)) {
+      return false;
+    }
+
+    return level.getBlockState(pos).getValue(PointedDripstoneBlock.TIP_DIRECTION) == Direction.DOWN;
   }
 }
