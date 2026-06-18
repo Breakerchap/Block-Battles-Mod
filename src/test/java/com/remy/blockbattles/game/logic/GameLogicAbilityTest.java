@@ -81,6 +81,21 @@ class GameLogicAbilityTest {
   }
 
   @Test
+  void netheriteBlockReplacesItselfWithDirtInDeck() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.NETHERITE_BLOCK),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = new GameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.getHand().add(CreateBlocks.NETHERITE_BLOCK);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.NETHERITE_BLOCK, TeamSide.RED));
+    assertEquals(CreateBlocks.DIRT, redTeam.getStartingDeck().get(0));
+    assertEquals(8, redTeam.getShield());
+  }
+
+  @Test
   void redstoneTorchBoostsDamageOnYourNextTurn() {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.HORN_CORAL_BLOCK),
@@ -115,6 +130,7 @@ class GameLogicAbilityTest {
     assertTrue(redTeam.hasCardInHand(CreateBlocks.NETHERRACK.id.getId()));
     assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.NETHERRACK, TeamSide.RED));
     assertEquals(160, blueTeam.getHealth());
+    assertEquals(20, blueTeam.getLastDamageTakenFromOpponent());
   }
 
   @Test

@@ -74,6 +74,8 @@ public class PlaceBlockMixin {
         pos,
         BattlePlayerTeams.getTeamSide(context.getPlayer()).orElse(null));
 
+    BlockBattlesMod.GAME_LOGIC.onAnyBlockPlaced(serverLevel, pos);
+
     if (handled) {
       BlockBattlesMod.GAME_LOGIC.syncBattleHands(serverLevel.getServer());
       BattleScoreboards.updateScoreboard(

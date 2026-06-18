@@ -32,6 +32,7 @@ public class BattleTeam {
   private int activeTurnShieldGain;
   private boolean activeHealingAlsoIncreasesMaxHealth;
   private int lastDamageDealt;
+  private int lastDamageTakenFromOpponent;
   private final ArrayList<BattleBlock> hand = new ArrayList<>();
   private final ArrayList<BattleBlock> startingDeck = new ArrayList<>();
   private final ArrayList<BattleBlock> drawPile = new ArrayList<>();
@@ -103,6 +104,7 @@ public class BattleTeam {
     health = maxHealth;
     shield = startingShield;
     lastDamageDealt = 0;
+    lastDamageTakenFromOpponent = 0;
     clearQueuedTurnEffects();
     clearActiveTurnEffects();
     hand.clear();
@@ -233,10 +235,18 @@ public class BattleTeam {
     return lastDamageDealt;
   }
 
+  public int getLastDamageTakenFromOpponent() {
+    return lastDamageTakenFromOpponent;
+  }
+
   public void recordLastDamageDealt(int amount) {
     if (amount > 0) {
       lastDamageDealt = amount;
     }
+  }
+
+  public void recordLastDamageTakenFromOpponent(int amount) {
+    lastDamageTakenFromOpponent = Math.max(0, amount);
   }
 
   public int consumeActiveTurnDamage() {

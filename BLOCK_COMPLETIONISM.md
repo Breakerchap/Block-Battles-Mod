@@ -12,8 +12,8 @@
 | --- | --- | --- | --- | --- | --- |
 | Grass | Yes | N/A | N/A | Missing |  |
 | Dirt (unchoosable) | Yes | N/A | N/A | Missing |  |
-| Mycelium (unchoosable) | Yes | Missing | N/A | Missing |  |
-| Podzol (unchoosable) | Yes | Missing | N/A | N/A |  |
+| Mycelium (unchoosable) | Yes | Done | N/A | Missing |  |
+| Podzol (unchoosable) | Yes | Done | N/A | N/A |  |
 | Farmland (unchoosable) | Yes | N/A | N/A | N/A |  |
 | Sand | Yes | N/A | N/A | Missing |  |
 | Sandstone | Yes | N/A | N/A | N/A |  |
@@ -32,7 +32,7 @@
 | Red Tulip | Yes | Partial | Missing | N/A | Code increases max health only; current health is not raised. |
 | Cornflower | Yes | Done | Missing | N/A |  |
 | Pink Petals | Yes | Done | Missing | N/A |  |
-| Torchflower | Yes | Missing | Missing | N/A |  |
+| Torchflower | Yes | Done | Missing | N/A |  |
 | Carved Pumpkin | Yes | Done | N/A | Missing |  |
 | Water | Yes | N/A | N/A | Missing |  |
 | Cherry Leaves | Yes | Done | Missing | N/A |  |
@@ -49,29 +49,29 @@
 | Netherrack | Yes | Done | N/A | Missing |  |
 | Nether Gold Ore | Yes | Done | N/A | Missing |  |
 | Nether Quartz Ore | Yes | Done | N/A | Missing |  |
-| Crimson Nylium (unchoosable) | Yes | Missing | N/A | N/A |  |
-| Warped Nylium (unchoosable) | Yes | Missing | N/A | N/A |  |
+| Crimson Nylium (unchoosable) | Yes | Done | N/A | N/A |  |
+| Warped Nylium (unchoosable) | Yes | Done | N/A | N/A |  |
 | Crimson Hyphae | Yes | Done | N/A | Missing |  |
 | Warped Hyphae | Yes | Done | N/A | Missing |  |
 | Soul Sand | Yes | Done | N/A | Missing |  |
 | Glowstone | Yes | N/A | N/A | N/A |  |
-| Candle | Yes | Missing | Missing | N/A |  |
+| Candle | Yes | Done | Missing | N/A |  |
 | Magma Block | Yes | N/A | N/A | Missing |  |
 | Soul Torch | Yes | Done | N/A | Missing |  |
 | Soul Lantern | Yes | Done | N/A | Missing |  |
 | Campfire | Yes | Done | N/A | N/A |  |
 | Soul Campfire | Yes | Done | N/A | Missing |  |
-| Wither Rose | Yes | Missing | Missing | N/A |  |
+| Wither Rose | Yes | Done | Missing | N/A |  |
 | Nether Bricks | Yes | N/A | N/A | Missing |  |
 | Respawn Anchor | Yes | N/A | N/A | Missing |  |
 | Ancient Debris | Yes | Partial | N/A | N/A | Unbreakable is enforced, but the 50-damage break effect is not reachable through normal breaking. |
-| Block of Netherite | Yes | Missing | N/A | N/A |  |
+| Block of Netherite | Yes | Done | N/A | N/A |  |
 | Endstone | Yes | N/A | N/A | N/A |  |
 | End Crystal | Yes | Done | Missing | N/A |  |
 | Dragon Egg | Yes | Done | N/A | Missing |  |
 | Furnace | Yes | Done | N/A | Missing |  |
-| Chest | Yes | Missing | N/A | Missing |  |
-| Trapped Chest | Yes | Missing | N/A | Missing |  |
+| Chest | Yes | Done | N/A | Missing |  |
+| Trapped Chest | Yes | Partial | N/A | Missing | Friendly man-made blocks are removed from play and suppressed, but chest contents are not yet persisted as a stored collection. |
 | Cauldron | Yes | N/A | N/A | Missing |  |
 | Composter | Yes | N/A | N/A | Missing |  |
 | Anvil | Yes | Done | N/A | N/A |  |
@@ -80,21 +80,21 @@
 | Loom | Yes | N/A | N/A | N/A |  |
 | Cartography Table | Yes | N/A | N/A | N/A |  |
 | Lectern | Yes | Partial | N/A | Missing | Code adds `+1` damage per card in hand; the sheet says `+8` per card. |
-| Brewing Stand | Yes | Missing | N/A | N/A |  |
+| Brewing Stand | Yes | Done | N/A | N/A |  |
 | Smithing Table | Yes | Done | N/A | N/A |  |
-| Enchanting Table | Yes | Missing | N/A | N/A |  |
-| Repeater | Yes | Missing | N/A | N/A |  |
-| Daylight Sensor | Yes | Missing | N/A | N/A |  |
+| Enchanting Table | Yes | Done | N/A | N/A |  |
+| Repeater | Yes | Done | N/A | N/A |  |
+| Daylight Sensor | Yes | Done | N/A | N/A |  |
 | Redstone Torch | Yes | Done | N/A | N/A |  |
 | Torch | Yes | Done | N/A | N/A |  |
 | Copper Torch | Yes | Partial | N/A | N/A | Code blocks the next incoming normal/direct health damage, not the entire next turn, and shield damage still applies. |
 | Lightning Rod | Yes | N/A | N/A | N/A |  |
-| Dispenser | Yes | Missing | N/A | N/A | Spreadsheet typo normalized from `Dspenser`. |
-| Monster Spawner | Yes | Missing | N/A | Missing |  |
-| Sculk Sensor | Yes | Missing | N/A | Missing |  |
-| Calibrated Sculk Sensor | Yes | Missing | N/A | Missing |  |
-| Sculk Shrieker | Yes | Missing | N/A | Missing |  |
-| Sculk Catalyst | Yes | Missing | N/A | Missing |  |
+| Dispenser | Yes | Done | N/A | N/A | Spreadsheet typo normalized from `Dspenser`. |
+| Monster Spawner | Yes | Done | N/A | Missing |  |
+| Sculk Sensor | Yes | Done | N/A | Missing |  |
+| Calibrated Sculk Sensor | Yes | Done | N/A | Missing |  |
+| Sculk Shrieker | Yes | Done | N/A | Missing |  |
+| Sculk Catalyst | Yes | Done | N/A | Missing |  |
 | Sculk | Yes | Done | N/A | Missing |  |
 | Chiseled Bookshelf | Yes | Missing | N/A | Missing |  |
 | Bookshelf | Yes | Missing | N/A | Missing |  |

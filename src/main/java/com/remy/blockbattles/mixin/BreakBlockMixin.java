@@ -32,6 +32,7 @@ public class BreakBlockMixin {
     }
 
     BlockBattlesMod.GAME_LOGIC.onBattleBlockBroken(level, pos);
+    BlockBattlesMod.GAME_LOGIC.onAnyBlockBroken(level, pos);
     BattleScoreboards.updateScoreboard(level.getServer(), BlockBattlesMod.BATTLE_STATE);
   }
 }
