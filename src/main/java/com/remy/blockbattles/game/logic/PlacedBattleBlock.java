@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 
 public final class PlacedBattleBlock {
   private final ServerLevel level;
-  private final BlockPos pos;
+  private BlockPos pos;
   private final BattleBlock battleBlock;
   private int ownerTurnCount;
 
@@ -40,5 +40,9 @@ public final class PlacedBattleBlock {
   public int advanceOwnerTurnCount() {
     ownerTurnCount++;
     return ownerTurnCount;
+  }
+
+  public void moveTo(BlockPos newPos) {
+    pos = Objects.requireNonNull(newPos, "newPos").immutable();
   }
 }

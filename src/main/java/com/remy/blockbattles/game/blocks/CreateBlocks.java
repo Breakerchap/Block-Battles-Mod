@@ -140,7 +140,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SNOW = block(
       BattleBlockIDs.SNOW, "Snow",
-      "None",
+      "Your opponent draws 1 less block while this is in play.",
       0, false,
       -1, true,
       0, false,
@@ -148,12 +148,12 @@ public class CreateBlocks {
 
   public static final BattleBlock POWDERED_SNOW = block(
       BattleBlockIDs.POWDER_SNOW, "Powdered Snow",
-      "None",
+      "Deals 4 damage next turn if this is still in play.",
       12, 0, 0, 0);
 
   public static final BattleBlock MOSS_BLOCK = block(
       BattleBlockIDs.MOSS_BLOCK, "Moss Block",
-      "None",
+      "Replaces all blocks within 1 block of it with grass.",
       0, 0, 0, 0);
 
   public static final BattleBlock DEAD_BUSH = block(
@@ -166,7 +166,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CACTUS = block(
       BattleBlockIDs.CACTUS, "Cactus",
-      "None",
+      "Reflects half of all health damage you take back to the attacker, rounded down.",
       0, 0, 0, 0);
 
   public static final BattleBlock RED_TULIP = block(
@@ -191,7 +191,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CARVED_PUMPKIN = block(
       BattleBlockIDs.CARVED_PUMPKIN, "Carved Pumpkin",
-      "None",
+      "Gives 4 healing for each block within 1 block.",
       0, 0, 0, 0);
 
   public static final BattleBlock WATER = block(
@@ -206,7 +206,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CHERRY_LOG = block(
       BattleBlockIDs.CHERRY_LOG, "Cherry Log",
-      "Places 1 Cherry Log above itself each turn if the block above is air.",
+      "Every turn, 1 Cherry Log gets placed above it if the block above is air.",
       0, false,
       0, false,
       3, true,
@@ -214,7 +214,7 @@ public class CreateBlocks {
 
   public static final BattleBlock JUNGLE_LOG = block(
       BattleBlockIDs.JUNGLE_LOG, "Jungle Log",
-      "Places 1 Jungle Log above itself each turn if the block above is air.",
+      "Every turn, 1 Jungle Log gets placed above it if the block above is air.",
       0, false,
       1, true,
       0, false,
@@ -336,7 +336,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CAMPFIRE = block(
       BattleBlockIDs.CAMPFIRE, "Campfire",
-      "None",
+      "Leaves after 3 turns.",
       10, true,
       0, false,
       0, false,
@@ -344,7 +344,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SOUL_CAMPFIRE = block(
       BattleBlockIDs.SOUL_CAMPFIRE, "Soul Campfire",
-      "None",
+      "Damage from this only applies to health, ignoring defence.",
       5, true,
       0, false,
       0, false,
@@ -391,7 +391,7 @@ public class CreateBlocks {
 
   public static final BattleBlock END_CRYSTAL = block(
       BattleBlockIDs.END_CRYSTAL, "End Crystal",
-      "None",
+      "Breaks all blocks within 2 blocks.",
       12, 0, 0, 0);
 
   public static final BattleBlock DRAGON_EGG = block(
@@ -401,7 +401,7 @@ public class CreateBlocks {
 
   public static final BattleBlock FURNACE = block(
       BattleBlockIDs.FURNACE, "Furnace",
-      "None",
+      "Gives +1 defence for each block within 1 block.",
       0, 0, 0, 0);
 
   public static final BattleBlock CHEST = block(
@@ -429,12 +429,12 @@ public class CreateBlocks {
 
   public static final BattleBlock ANVIL = block(
       BattleBlockIDs.ANVIL, "Anvil",
-      "None",
+      "Deals 6 damage for each block fallen after being placed.",
       0, 0, 0, 0);
 
   public static final BattleBlock DAMAGED_ANVIL = block(
       BattleBlockIDs.DAMAGED_ANVIL, "Damaged Anvil",
-      "None",
+      "Deals 10 damage to your opponent and 5 damage to you for each block fallen after being placed.",
       0, 0, 0, 0);
 
   public static final BattleBlock STONECUTTER = block(
@@ -785,7 +785,7 @@ public class CreateBlocks {
 
   public static final BattleBlock MUSHROOM_STEM = block(
       BattleBlockIDs.MUSHROOM_STEM, "Mushroom Stem",
-      "None",
+      "Every turn, 1 Mushroom Stem gets placed above it if the block above is air.",
       6, true,
       0, false,
       0, false,
