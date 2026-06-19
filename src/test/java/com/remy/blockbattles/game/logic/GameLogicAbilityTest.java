@@ -10,12 +10,17 @@ import org.junit.jupiter.api.Test;
 import com.remy.blockbattles.game.blocks.CreateBlocks;
 
 class GameLogicAbilityTest {
+  private static GameLogic createRunningGameLogic(BattleState battleState) {
+    battleState.setGameRunning(true);
+    return new GameLogic(battleState);
+  }
+
   @Test
   void cherryLeavesHealUsesTenthOfCurrentMaxHealth() {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.CHERRY_LEAVES),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
 
     redTeam.increaseMaxHealth(30);
@@ -33,7 +38,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.CORNFLOWER),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
 
     redTeam.takeHealthDamage(80);
@@ -48,7 +53,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.PINK_PETALS, CreateBlocks.GLOWSTONE),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
 
     redTeam.takeHealthDamage(50);
@@ -69,7 +74,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.LAPIS_BLOCK),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
 
     redTeam.takeHealthDamage(99);
@@ -85,7 +90,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.NETHERITE_BLOCK),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
 
     redTeam.getHand().add(CreateBlocks.NETHERITE_BLOCK);
@@ -100,7 +105,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.HORN_CORAL_BLOCK),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
     BattleTeam blueTeam = battleState.getBlueTeam();
 
@@ -118,7 +123,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.HORN_CORAL_BLOCK, CreateBlocks.NETHERRACK),
         List.of(CreateBlocks.MOSS_BLOCK));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
     BattleTeam blueTeam = battleState.getBlueTeam();
 
@@ -138,7 +143,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.SOUL_SAND),
         List.of(CreateBlocks.SAND, CreateBlocks.SANDSTONE, CreateBlocks.SMOOTH_SANDSTONE));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
     BattleTeam blueTeam = battleState.getBlueTeam();
 
@@ -153,7 +158,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.SCULK),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
     BattleTeam blueTeam = battleState.getBlueTeam();
 
@@ -169,7 +174,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.VAULT),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
 
     redTeam.takeHealthDamage(30);
@@ -186,7 +191,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.WITHER_SKELETON_SKULL),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam blueTeam = battleState.getBlueTeam();
 
     blueTeam.gainShield(7);
@@ -201,7 +206,7 @@ class GameLogicAbilityTest {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.DEAD_BUSH),
         List.of(CreateBlocks.SAND));
-    GameLogic gameLogic = new GameLogic(battleState);
+    GameLogic gameLogic = createRunningGameLogic(battleState);
     BattleTeam redTeam = battleState.getRedTeam();
 
     redTeam.takeHealthDamage(25);

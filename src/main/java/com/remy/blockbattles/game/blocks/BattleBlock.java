@@ -1,5 +1,9 @@
 package com.remy.blockbattles.game.blocks;
 
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 public class BattleBlock {
   final public BattleBlockIDs id;
   final public String displayName;
@@ -17,6 +21,9 @@ public class BattleBlock {
 
   final public int defenceDamage;
   public boolean defenceDamagePerTurn = false;
+
+  public String requirementDescription = "";
+  public Set<String> requiredSupportBlockIds = Set.of();
 
   public BattleBlock(
       BattleBlockIDs id,
@@ -76,5 +83,23 @@ public class BattleBlock {
   @Override
   public String toString() {
     return displayName;
+  }
+
+  public BattleBlock withPlacementRequirements(
+      String requirementDescription,
+      BattleBlockIDs... requiredSupportBlocks) {
+    this.requirementDescription = requirementDescription;
+    this.requiredSupportBlockIds = Arrays.stream(requiredSupportBlocks)
+        .map(BattleBlockIDs::getId)
+        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    return this;
+  }
+
+  public boolean hasPlacementRequirements() {
+    return !requiredSupportBlockIds.isEmpty();
+  }
+
+  public boolean canBePlacedOn(String supportBlockId) {
+    return !hasPlacementRequirements() || requiredSupportBlockIds.contains(supportBlockId);
   }
 }

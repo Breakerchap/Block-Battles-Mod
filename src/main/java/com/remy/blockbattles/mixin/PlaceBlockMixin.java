@@ -36,18 +36,25 @@ public class PlaceBlockMixin {
 
     TeamSide teamSide = BattlePlayerTeams.getTeamSide(context.getPlayer()).orElse(null);
     String blockIdString = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+    BlockPos supportPos = blockBattles$resolveSupportPos(context);
+    String supportBlockId = BuiltInRegistries.BLOCK.getKey(context.getLevel().getBlockState(supportPos).getBlock())
+        .toString();
+    TeamSide supportOwnerSide = BlockBattlesMod.GAME_LOGIC.getPlacedBattleBlockOwner(
+        (ServerLevel) context.getLevel(),
+        supportPos);
 
-    if (BlockBattlesMod.GAME_LOGIC.canPlaceBattleBlock(blockIdString, teamSide)) {
+    String failureMessage = BlockBattlesMod.GAME_LOGIC.getBattleBlockPlacementFailure(
+        blockIdString,
+        teamSide,
+        supportBlockId,
+        supportOwnerSide);
+
+    if (failureMessage == null) {
       return;
     }
 
     if (context.getPlayer() != null) {
-      Component message = teamSide == null
-          ? Component.literal("Join the Red or Blue team first with /BB join red or /BB join blue.")
-          : teamSide != BlockBattlesMod.BATTLE_STATE.getActiveSide()
-              ? Component.literal("It is " + BlockBattlesMod.BATTLE_STATE.getActiveSide().getDisplayName() + "'s turn.")
-              : Component.literal("That block is not in your current 3-card hand.");
-      context.getPlayer().sendSystemMessage(message);
+      context.getPlayer().sendSystemMessage(Component.literal(failureMessage));
     }
 
     cir.setReturnValue(false);
@@ -107,5 +114,23 @@ public class PlaceBlockMixin {
     }
 
     return clickedPos;
+  }
+
+  static BlockPos blockBattles$resolveSupportPos(BlockPlaceContext context) {
+    return blockBattles$resolveSupportPos(
+        context.getClickedPos(),
+        context.getClickedFace(),
+        context.replacingClickedOnBlock());
+  }
+
+  static BlockPos blockBattles$resolveSupportPos(
+      BlockPos clickedPos,
+      net.minecraft.core.Direction clickedFace,
+      boolean replacingClickedOnBlock) {
+    if (replacingClickedOnBlock) {
+      return clickedPos;
+    }
+
+    return clickedPos.relative(clickedFace.getOpposite());
   }
 }

@@ -99,6 +99,13 @@ public final class BattleCardItems {
         .withStyle(ChatFormatting.GRAY)
         .append(Component.literal(formatClassification(battleBlock.classification)).withStyle(ChatFormatting.LIGHT_PURPLE)));
     lore.add(Component.literal("Ability: " + battleBlock.abilityDescription).withStyle(ChatFormatting.GRAY));
+
+    if (battleBlock.hasPlacementRequirements()) {
+      lore.add(Component.literal("Requirements: ")
+          .withStyle(ChatFormatting.GRAY)
+          .append(Component.literal(battleBlock.requirementDescription).withStyle(ChatFormatting.YELLOW)));
+    }
+
     lore.add(statLine("Damage", battleBlock.damage, battleBlock.damagePerTurn, ChatFormatting.RED));
     lore.add(statLine("Defence", battleBlock.defence, battleBlock.defencePerTurn, ChatFormatting.AQUA));
     lore.add(statLine("Healing", battleBlock.healing, battleBlock.healingPerTurn, ChatFormatting.GREEN));

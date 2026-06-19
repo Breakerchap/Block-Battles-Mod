@@ -7,6 +7,17 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class CreateBlocks {
+  private static final String GRASS_VARIANTS_REQUIREMENT =
+      "Place on Grass, Dirt, Podzol, Mycelium, or Farmland.";
+  private static final String CACTUS_REQUIREMENT =
+      "Place on Sand, Red Sand, Grass, Dirt, Podzol, Mycelium, or Farmland. No adjacent blocks.";
+  private static final String CORAL_BLOCK_REQUIREMENT =
+      "Place on Horn Coral Block, Tube Coral Block, Bubble Coral Block, or Fire Coral Block.";
+  private static final String FLOWERING_LOG_REQUIREMENT =
+      "Place on Cherry Log, Jungle Log, Pale Oak Log, or Cherry Leaves.";
+  private static final String COCOA_LOG_REQUIREMENT =
+      "Place on Cherry Log, Jungle Log, or Pale Oak Log.";
+
   private static BattleBlock block(
       BattleBlockIDs id,
       String name,
@@ -57,6 +68,21 @@ public class CreateBlocks {
     battleBlock.defenceDamagePerTurn = defenceDamagePerTurn;
 
     return battleBlock;
+  }
+
+  private static BattleBlock requireOn(BattleBlock battleBlock, String requirementDescription, BattleBlockIDs... requiredSupportBlocks) {
+    return battleBlock.withPlacementRequirements(requirementDescription, requiredSupportBlocks);
+  }
+
+  private static BattleBlock requireOnGrassVariants(BattleBlock battleBlock) {
+    return requireOn(
+        battleBlock,
+        GRASS_VARIANTS_REQUIREMENT,
+        BattleBlockIDs.GRASS_BLOCK,
+        BattleBlockIDs.DIRT,
+        BattleBlockIDs.PODZOL,
+        BattleBlockIDs.MYCELIUM,
+        BattleBlockIDs.FARMLAND);
   }
 
   public static final BattleBlock GRASS_BLOCK = block(
@@ -164,30 +190,43 @@ public class CreateBlocks {
       0, false,
       0, false);
 
-  public static final BattleBlock CACTUS = block(
-      BattleBlockIDs.CACTUS, "Cactus",
-      "Reflects half of all health damage you take back to the attacker, rounded down.",
-      0, 0, 0, 0);
+  public static final BattleBlock CACTUS = requireOn(
+      block(
+          BattleBlockIDs.CACTUS, "Cactus",
+          "Reflects half of all health damage you take back to the attacker, rounded down.",
+          0, 0, 0, 0),
+      CACTUS_REQUIREMENT,
+      BattleBlockIDs.SAND,
+      BattleBlockIDs.RED_SAND,
+      BattleBlockIDs.GRASS_BLOCK,
+      BattleBlockIDs.DIRT,
+      BattleBlockIDs.PODZOL,
+      BattleBlockIDs.MYCELIUM,
+      BattleBlockIDs.FARMLAND);
 
-  public static final BattleBlock RED_TULIP = block(
-      BattleBlockIDs.RED_TULIP, "Red Tulip",
-      "Increase your team's max health by 20.",
-      0, 0, 0, 0);
+  public static final BattleBlock RED_TULIP = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.RED_TULIP, "Red Tulip",
+          "Increase your team's max health by 20.",
+          0, 0, 0, 0));
 
-  public static final BattleBlock CORNFLOWER = block(
-      BattleBlockIDs.CORNFLOWER, "Cornflower",
-      "Heals a quarter of your current health.",
-      0, 0, 0, 0);
+  public static final BattleBlock CORNFLOWER = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.CORNFLOWER, "Cornflower",
+          "Heals a quarter of your current health.",
+          0, 0, 0, 0));
 
-  public static final BattleBlock PINK_PETALS = block(
-      BattleBlockIDs.PINK_PETALS, "Pink Petals",
-      "All healing on your next turn increases your max health as well.",
-      0, 0, 10, 0);
+  public static final BattleBlock PINK_PETALS = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.PINK_PETALS, "Pink Petals",
+          "All healing on your next turn increases your max health as well.",
+          0, 0, 10, 0));
 
-  public static final BattleBlock TORCHFLOWER = block(
-      BattleBlockIDs.TORCHFLOWER, "Torchflower",
-      "None",
-      12, 0, 0, 0);
+  public static final BattleBlock TORCHFLOWER = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.TORCHFLOWER, "Torchflower",
+          "None",
+          12, 0, 0, 0));
 
   public static final BattleBlock CARVED_PUMPKIN = block(
       BattleBlockIDs.CARVED_PUMPKIN, "Carved Pumpkin",
@@ -199,26 +238,34 @@ public class CreateBlocks {
       "None",
       0, 0, 0, 0);
 
-  public static final BattleBlock CHERRY_LEAVES = block(
-      BattleBlockIDs.CHERRY_LEAVES, "Cherry Leaves",
-      "Heal 10% of your max health.",
-      0, 0, 0, 0);
+  public static final BattleBlock CHERRY_LEAVES = requireOn(
+      block(
+          BattleBlockIDs.CHERRY_LEAVES, "Cherry Leaves",
+          "Heal 10% of your max health.",
+          0, 0, 0, 0),
+      FLOWERING_LOG_REQUIREMENT,
+      BattleBlockIDs.CHERRY_LOG,
+      BattleBlockIDs.JUNGLE_LOG,
+      BattleBlockIDs.PALE_OAK_LOG,
+      BattleBlockIDs.CHERRY_LEAVES);
 
-  public static final BattleBlock CHERRY_LOG = block(
-      BattleBlockIDs.CHERRY_LOG, "Cherry Log",
-      "Every turn, 1 Cherry Log gets placed above it if the block above is air.",
-      0, false,
-      0, false,
-      3, true,
-      0, false);
+  public static final BattleBlock CHERRY_LOG = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.CHERRY_LOG, "Cherry Log",
+          "Every turn, 1 Cherry Log gets placed above it if the block above is air.",
+          0, false,
+          0, false,
+          3, true,
+          0, false));
 
-  public static final BattleBlock JUNGLE_LOG = block(
-      BattleBlockIDs.JUNGLE_LOG, "Jungle Log",
-      "Every turn, 1 Jungle Log gets placed above it if the block above is air.",
-      0, false,
-      1, true,
-      0, false,
-      0, false);
+  public static final BattleBlock JUNGLE_LOG = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.JUNGLE_LOG, "Jungle Log",
+          "Every turn, 1 Jungle Log gets placed above it if the block above is air.",
+          0, false,
+          1, true,
+          0, false,
+          0, false));
 
   public static final BattleBlock HORN_CORAL_BLOCK = block(
       BattleBlockIDs.HORN_CORAL_BLOCK, "Horn Coral Block",
@@ -240,20 +287,38 @@ public class CreateBlocks {
       "None",
       0, 0, 0, 4);
 
-  public static final BattleBlock BUBBLE_CORAL_FAN = block(
-      BattleBlockIDs.BUBBLE_CORAL_FAN, "Bubble Coral Fan",
-      "None",
-      0, 0, 30, 0);
+  public static final BattleBlock BUBBLE_CORAL_FAN = requireOn(
+      block(
+          BattleBlockIDs.BUBBLE_CORAL_FAN, "Bubble Coral Fan",
+          "None",
+          0, 0, 30, 0),
+      CORAL_BLOCK_REQUIREMENT,
+      BattleBlockIDs.HORN_CORAL_BLOCK,
+      BattleBlockIDs.TUBE_CORAL_BLOCK,
+      BattleBlockIDs.BUBBLE_CORAL_BLOCK,
+      BattleBlockIDs.FIRE_CORAL_BLOCK);
 
-  public static final BattleBlock HORN_CORAL_FAN = block(
-      BattleBlockIDs.HORN_CORAL_FAN, "Horn Coral Fan",
-      "None",
-      34, 0, 0, 0);
+  public static final BattleBlock HORN_CORAL_FAN = requireOn(
+      block(
+          BattleBlockIDs.HORN_CORAL_FAN, "Horn Coral Fan",
+          "None",
+          34, 0, 0, 0),
+      CORAL_BLOCK_REQUIREMENT,
+      BattleBlockIDs.HORN_CORAL_BLOCK,
+      BattleBlockIDs.TUBE_CORAL_BLOCK,
+      BattleBlockIDs.BUBBLE_CORAL_BLOCK,
+      BattleBlockIDs.FIRE_CORAL_BLOCK);
 
-  public static final BattleBlock TUBE_CORAL_FAN = block(
-      BattleBlockIDs.TUBE_CORAL_FAN, "Tube Coral Fan",
-      "None",
-      0, 7, 0, 0);
+  public static final BattleBlock TUBE_CORAL_FAN = requireOn(
+      block(
+          BattleBlockIDs.TUBE_CORAL_FAN, "Tube Coral Fan",
+          "None",
+          0, 7, 0, 0),
+      CORAL_BLOCK_REQUIREMENT,
+      BattleBlockIDs.HORN_CORAL_BLOCK,
+      BattleBlockIDs.TUBE_CORAL_BLOCK,
+      BattleBlockIDs.BUBBLE_CORAL_BLOCK,
+      BattleBlockIDs.FIRE_CORAL_BLOCK);
 
   public static final BattleBlock PRISMARINE = block(
       BattleBlockIDs.PRISMARINE, "Prismarine",
@@ -311,10 +376,13 @@ public class CreateBlocks {
       "None",
       0, 0, 12, 0);
 
-  public static final BattleBlock CANDLE = block(
-      BattleBlockIDs.CANDLE, "Candle",
-      "None",
-      0, 0, 16, 0);
+  public static final BattleBlock CANDLE = requireOn(
+      block(
+          BattleBlockIDs.CANDLE, "Candle",
+          "None",
+          0, 0, 16, 0),
+      "Place on Cake.",
+      BattleBlockIDs.CAKE);
 
   public static final BattleBlock MAGMA_BLOCK = block(
       BattleBlockIDs.MAGMA_BLOCK, "Magma Block",
@@ -350,10 +418,11 @@ public class CreateBlocks {
       0, false,
       0, false);
 
-  public static final BattleBlock WITHER_ROSE = block(
-      BattleBlockIDs.WITHER_ROSE, "Wither Rose",
-      "None",
-      6, 0, 0, 0);
+  public static final BattleBlock WITHER_ROSE = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.WITHER_ROSE, "Wither Rose",
+          "None",
+          6, 0, 0, 0));
 
   public static final BattleBlock NETHER_BRICKS = block(
       BattleBlockIDs.NETHER_BRICKS, "Nether Bricks",
@@ -389,10 +458,15 @@ public class CreateBlocks {
       0, false,
       0, false);
 
-  public static final BattleBlock END_CRYSTAL = block(
-      BattleBlockIDs.END_CRYSTAL, "End Crystal",
-      "Breaks all blocks within 2 blocks.",
-      12, 0, 0, 0);
+  public static final BattleBlock END_CRYSTAL = requireOn(
+      block(
+          BattleBlockIDs.END_CRYSTAL, "End Crystal",
+          "Breaks all blocks within 2 blocks.",
+          12, 0, 0, 0),
+      "Place on Obsidian, Bedrock, or Block of Netherite.",
+      BattleBlockIDs.OBSIDIAN,
+      BattleBlockIDs.BEDROCK,
+      BattleBlockIDs.NETHERITE_BLOCK);
 
   public static final BattleBlock DRAGON_EGG = block(
       BattleBlockIDs.DRAGON_EGG, "Dragon Egg",
@@ -783,21 +857,27 @@ public class CreateBlocks {
       12, true,
       0, false);
 
-  public static final BattleBlock MUSHROOM_STEM = block(
-      BattleBlockIDs.MUSHROOM_STEM, "Mushroom Stem",
-      "Every turn, 1 Mushroom Stem gets placed above it if the block above is air.",
-      6, true,
-      0, false,
-      0, false,
-      0, false);
+  public static final BattleBlock MUSHROOM_STEM = requireOnGrassVariants(
+      block(
+          BattleBlockIDs.MUSHROOM_STEM, "Mushroom Stem",
+          "Every turn, 1 Mushroom Stem gets placed above it if the block above is air.",
+          6, true,
+          0, false,
+          0, false,
+          0, false));
 
-  public static final BattleBlock COCOA = block(
-      BattleBlockIDs.COCOA, "Cocoa Beans",
-      "None",
-      0, false,
-      0, false,
-      9, true,
-      0, false);
+  public static final BattleBlock COCOA = requireOn(
+      block(
+          BattleBlockIDs.COCOA, "Cocoa Beans",
+          "None",
+          0, false,
+          0, false,
+          9, true,
+          0, false),
+      COCOA_LOG_REQUIREMENT,
+      BattleBlockIDs.CHERRY_LOG,
+      BattleBlockIDs.JUNGLE_LOG,
+      BattleBlockIDs.PALE_OAK_LOG);
 
   public static final BattleBlock SLIME_BLOCK = block(
       BattleBlockIDs.SLIME_BLOCK, "Slime Block",
@@ -843,10 +923,13 @@ public class CreateBlocks {
       0, false,
       0, false);
 
-  public static final BattleBlock DRAGON_HEAD = block(
-      BattleBlockIDs.DRAGON_HEAD, "Dragon Head",
-      "None",
-      46, 0, 0, 0);
+  public static final BattleBlock DRAGON_HEAD = requireOn(
+      block(
+          BattleBlockIDs.DRAGON_HEAD, "Dragon Head",
+          "None",
+          46, 0, 0, 0),
+      "Place on Dragon Egg.",
+      BattleBlockIDs.DRAGON_EGG);
 
   public static final BattleBlock OAK_PLANKS = block(
       BattleBlockIDs.OAK_PLANKS, "Oak Planks",

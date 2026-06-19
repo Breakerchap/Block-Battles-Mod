@@ -62,6 +62,61 @@ public class GameLogic {
         && battleState.getTeam(actingSide).hasCardInHand(blockId);
   }
 
+  public boolean canPlaceBattleBlock(
+      String blockId,
+      TeamSide actingSide,
+      String supportBlockId,
+      TeamSide supportOwnerSide) {
+    return getBattleBlockPlacementFailure(blockId, actingSide, supportBlockId, supportOwnerSide) == null;
+  }
+
+  public String getBattleBlockPlacementFailure(
+      String blockId,
+      TeamSide actingSide,
+      String supportBlockId,
+      TeamSide supportOwnerSide) {
+    if (!battleState.isGameRunning()) {
+      return null;
+    }
+
+    if (!isBattlePlacement(blockId)) {
+      return null;
+    }
+
+    if (actingSide == null) {
+      return "Join the Red or Blue team first with /BB join red or /BB join blue.";
+    }
+
+    if (actingSide != battleState.getActiveSide()) {
+      return "It is " + battleState.getActiveSide().getDisplayName() + "'s turn.";
+    }
+
+    if (!battleState.getTeam(actingSide).hasCardInHand(blockId)) {
+      return "That block is not in your current 3-card hand.";
+    }
+
+    BattleBlock battleBlock = CreateBlocks.findByMinecraftId(blockId).orElse(null);
+
+    if (battleBlock == null || !battleBlock.hasPlacementRequirements()) {
+      return null;
+    }
+
+    if (supportBlockId == null || !battleBlock.canBePlacedOn(supportBlockId)) {
+      return "Requirements: " + battleBlock.requirementDescription;
+    }
+
+    if (supportOwnerSide != null && supportOwnerSide != actingSide) {
+      return "You can only place that on your own team's battle blocks.";
+    }
+
+    return null;
+  }
+
+  public TeamSide getPlacedBattleBlockOwner(ServerLevel level, BlockPos pos) {
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
+    return trackedBlock == null ? null : trackedBlock.ownerTeam().getSide();
+  }
+
   public boolean onPlaceBattleBlock(String blockId) {
     return CreateBlocks.findByMinecraftId(blockId)
         .map(battleBlock -> placeBattleBlock(battleBlock, battleState.getActiveSide(), null, null))
