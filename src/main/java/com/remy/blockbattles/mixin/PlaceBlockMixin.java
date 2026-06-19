@@ -116,14 +116,14 @@ public class PlaceBlockMixin {
     return clickedPos;
   }
 
-  static BlockPos blockBattles$resolveSupportPos(BlockPlaceContext context) {
+  private static BlockPos blockBattles$resolveSupportPos(BlockPlaceContext context) {
     return blockBattles$resolveSupportPos(
         context.getClickedPos(),
         context.getClickedFace(),
         context.replacingClickedOnBlock());
   }
 
-  static BlockPos blockBattles$resolveSupportPos(
+  private static BlockPos blockBattles$resolveSupportPos(
       BlockPos clickedPos,
       net.minecraft.core.Direction clickedFace,
       boolean replacingClickedOnBlock) {
