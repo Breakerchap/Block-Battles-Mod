@@ -4,7 +4,9 @@
 
 - `146` named spreadsheet blocks are present in `CreateBlocks`.
 - The spreadsheet placeholder block `???` is still not implemented.
-- There is currently no warp system or warp trigger system anywhere under `src/main/java`.
+- `22` warp types now exist in `BattleWarp` / `GameLogic`, with active warp state, trigger detection, effect handling, and optional structure placement.
+- Missing warp structure `.nbt` files now log a warning and do not crash the game.
+- `Night Warp`, `Trial Chamber Warp`, and `Witch Hut Warp` are still missing.
 
 ## Blocks
 
@@ -29,7 +31,7 @@
 | Moss Block | Yes | Done | N/A | N/A |  |
 | Dead Bush | Yes | Done | N/A | N/A |  |
 | Cactus | Yes | Done | Missing | N/A |  |
-| Red Tulip | Yes | Partial | Missing | N/A | Code increases max health only; current health is not raised. |
+| Red Tulip | Yes | Done | Missing | N/A |  |
 | Cornflower | Yes | Done | Missing | N/A |  |
 | Pink Petals | Yes | Done | Missing | N/A |  |
 | Torchflower | Yes | Done | Missing | N/A |  |
@@ -64,7 +66,7 @@
 | Wither Rose | Yes | Done | Missing | N/A |  |
 | Nether Bricks | Yes | N/A | N/A | Missing |  |
 | Respawn Anchor | Yes | N/A | N/A | Missing |  |
-| Ancient Debris | Yes | Partial | N/A | N/A | Unbreakable is enforced, but the 50-damage break effect is not reachable through normal breaking. |
+| Ancient Debris | Yes | Partial | N/A | N/A | Normally unbreakable, but its 50-damage break effect is now reachable in all-breakable warps. |
 | Block of Netherite | Yes | Done | N/A | N/A |  |
 | Endstone | Yes | N/A | N/A | N/A |  |
 | End Crystal | Yes | Done | Missing | N/A |  |
@@ -160,32 +162,32 @@
 
 ## Warps
 
-There is no current warp state, warp effect handling, or warp trigger detection in the Java source right now, so every warp below is still missing both its effect logic and its combo trigger logic.
+There is now a real warp system in the Java source: active warp state, trigger detection, rule application, and safe structure loading all exist. The table below tracks how closely each warp matches the spreadsheet behavior right now.
 
 | Warp | Implemented | Effect | Trigger Combos | Notes |
 | --- | --- | --- | --- | --- |
-| Night Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Trial Chamber Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Village House Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| End Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Library Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Witch Hut Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Deep Dark Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Soul Sand Valley Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Blizzard Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Ocean Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Redstone Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Nether Strip Mine Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Nether Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Lush Cave Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Desert Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Strip Mine Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Bed Wars Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Swamp Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Dripstone Cave Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Nether Fortress Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Bastion Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Flower Forest Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Cave Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Mesa Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
-| Pale Garden Warp | No | Missing | Missing | No warp system or warp trigger code exists in `src/main/java` right now. |
+| Night Warp | No | Missing | Missing | Not present in `BattleWarp` / `GameLogic`. |
+| Trial Chamber Warp | No | Missing | Missing | Not present in `BattleWarp` / `GameLogic`. |
+| Village House Warp | Yes | Done | Done | Heals both teams for `16` every turn, disables mob-head block effects, forces sunlight, and recognizes the Red Bed village-adjacency combos. |
+| End Warp | Yes | Done | Done | Beds explode on placement, no sunlight is forced, and after the warp survives for `3` rounds the lower-health team dies, with ties going against the non-starter. |
+| Library Warp | Yes | Done | Done | Each turn now draws the entire remaining deck, refilling first when empty, and the bookshelf / lectern / candle combos are detected. |
+| Witch Hut Warp | No | Missing | Missing | Not present in `BattleWarp` / `GameLogic`. |
+| Deep Dark Warp | Partial | Partial | Partial | Active warp, no sunlight, and deck-loss damage exist, but it auto-removes a random deck card instead of offering a choice, and the adjacency rule is broader than the sheet. |
+| Soul Sand Valley Warp | Yes | Done | Done | Disables per-turn blocks, forces no sunlight, and routes damage through direct-health damage. |
+| Blizzard Warp | Yes | Done | Done | Turn-by-turn draw/place scaling, no sunlight, and Water-to-Ice conversion are implemented. |
+| Ocean Warp | Partial | Partial | Partial | Fire cleanup, sunlight, farmland conversion, and explosion suppression exist, but the board conversion logic is only applied to tracked/changed positions rather than the whole world. |
+| Redstone Warp | Yes | Done | Done | Blocks placed during the warp are activated twice. |
+| Nether Strip Mine Warp | Partial | Done | Partial | Lava scaling, Water/Powdered Snow removal, Coral suppression, bed explosions, extra draw, no sunlight, and universal breakability exist; trigger matching is broader than the sheet. |
+| Nether Warp | Yes | Done | Done | Lava scaling, Water/Powdered Snow removal, Coral suppression, bed explosions, and no sunlight are implemented. |
+| Lush Cave Warp | Yes | Done | Done | Healing now damages the opponent for the same amount. |
+| Desert Warp | Partial | Partial | Partial | The low-defence damage rule exists, but it is applied at each player's turn start, and the combo matching is only implemented for the currently modeled sandstone set. |
+| Strip Mine Warp | Partial | Done | Partial | Extra draw and universal breakability exist; trigger matching is implemented with a broader adjacency rule. |
+| Bed Wars Warp | Partial | Done | Partial | End Stone, Oak Planks, Obsidian, Glass, and Red Bed warp effects all exist, but the trigger logic is a simplified local pattern check. |
+| Swamp Warp | Partial | Done | Missing | The active-player damage effect exists, but no trigger combo was provided/implemented so it cannot currently activate automatically. |
+| Dripstone Cave Warp | Yes | Done | Done | All blocks become breakable and all damage is doubled. |
+| Nether Fortress Warp | Partial | Partial | Done | No sunlight, Nether Bricks unbreakability, lava scaling, Water/Powdered Snow removal, Coral suppression, and bed explosions exist, but the Monster Spawner / Nether Bricks stat adjustments are only partially matched. |
+| Bastion Warp | Yes | Done | Done | Shield damage is doubled and blocks next to gold have doubled effects. |
+| Flower Forest Warp | Yes | Done | Done | Both teams gain and lose `+70` max health on warp enter/exit, and the health loss can kill. |
+| Cave Warp | Yes | Done | Done | Shield damage is halved and all blocks become breakable. |
+| Mesa Warp | Partial | Done | Partial | Defence gains/losses are doubled, but trigger matching is implemented with a simplified red-sand / red-sandstone neighborhood rule. |
+| Pale Garden Warp | Yes | Done | Done | Healing is inverted, and Pale Oak / Creaking Heart trigger detection exists. |

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 
 import com.remy.blockbattles.game.blocks.BattleBlock;
 
@@ -136,6 +137,10 @@ public class BattleTeam {
     hand.add(Objects.requireNonNull(battleBlock, "battleBlock"));
   }
 
+  public boolean removeOneCardFromHand(BattleBlock battleBlock) {
+    return hand.remove(Objects.requireNonNull(battleBlock, "battleBlock"));
+  }
+
   public boolean removeOneCardFromDrawPile(BattleBlock battleBlock) {
     return drawPile.remove(Objects.requireNonNull(battleBlock, "battleBlock"));
   }
@@ -167,6 +172,22 @@ public class BattleTeam {
 
     drawPile.remove(battleBlock);
     return true;
+  }
+
+  public BattleBlock removeRandomCardFromDeck(Random random) {
+    Objects.requireNonNull(random, "random");
+
+    if (startingDeck.isEmpty()) {
+      return null;
+    }
+
+    BattleBlock removedCard = startingDeck.remove(random.nextInt(startingDeck.size()));
+
+    if (!drawPile.remove(removedCard)) {
+      hand.remove(removedCard);
+    }
+
+    return removedCard;
   }
 
   public void queueTurnDamageBonus(int amount) {

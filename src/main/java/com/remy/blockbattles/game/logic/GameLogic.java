@@ -1,9 +1,13 @@
 package com.remy.blockbattles.game.logic;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
+import com.remy.blockbattles.BlockBattlesMod;
 import com.remy.blockbattles.game.blocks.BattleBlock;
 import com.remy.blockbattles.game.blocks.BattleBlockIDs;
 import com.remy.blockbattles.game.blocks.Classification;
@@ -15,12 +19,14 @@ import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 public class GameLogic {
@@ -48,6 +54,10 @@ public class GameLogic {
     return battleState.isGameRunning();
   }
 
+  public BattleWarp getActiveWarp() {
+    return battleState.getActiveWarp();
+  }
+
   public boolean canPlaceBattleBlock(String blockId, TeamSide actingSide) {
     if (!battleState.isGameRunning()) {
       return true;
@@ -59,6 +69,7 @@ public class GameLogic {
 
     return actingSide != null
         && actingSide == battleState.getActiveSide()
+        && battleState.getRemainingPlacementsThisTurn() > 0
         && battleState.getTeam(actingSide).hasCardInHand(blockId);
   }
 
@@ -95,18 +106,12 @@ public class GameLogic {
       return "That block is not in your current 3-card hand.";
     }
 
-    BattleBlock battleBlock = CreateBlocks.findByMinecraftId(blockId).orElse(null);
-
-    if (battleBlock == null || !battleBlock.hasPlacementRequirements()) {
-      return null;
+    if (battleState.getRemainingPlacementsThisTurn() <= 0) {
+      return "You have already placed all of your blocks for this turn.";
     }
 
-    if (supportBlockId == null || !battleBlock.canBePlacedOn(supportBlockId)) {
-      return "Requirements: " + battleBlock.requirementDescription;
-    }
-
-    if (supportOwnerSide != null && supportOwnerSide != actingSide) {
-      return "You can only place that on your own team's battle blocks.";
+    if (isPlacementBlockedByWarp(blockId)) {
+      return "That block cannot be placed during " + battleState.getActiveWarp().getDisplayName() + ".";
     }
 
     return null;
@@ -177,28 +182,31 @@ public class GameLogic {
       return battleBlock;
     }
 
+    int effectMultiplier = getBlockEffectMultiplier(level, pos, battleBlock);
+
     switch (battleBlock.id) {
       case TNT -> {
-        if (level != null && pos != null) {
+        if (!areExplosionsDisabled() && level != null && pos != null) {
           breakBlocksAround(level, pos);
+          return null;
         }
-
-        return null;
       }
       case RED_TULIP -> {
-        Abilities.redTulipAbility(currentTeam);
+        for (int i = 0; i < effectMultiplier; i++) {
+          Abilities.redTulipAbility(currentTeam);
+        }
       }
       case CORNFLOWER -> {
-        queueHealingSource(currentTeam, currentTeam.getHealth() / 4, true);
+        queueHealingSource(currentTeam, (currentTeam.getHealth() / 4) * effectMultiplier, true);
       }
       case PINK_PETALS -> currentTeam.queueHealingAlsoIncreasesMaxHealth();
       case CARVED_PUMPKIN -> {
         if (level != null && pos != null) {
-          queueHealingSource(currentTeam, countNearbyBlocks(level, pos, 1) * 4, true);
+          queueHealingSource(currentTeam, countNearbyBlocks(level, pos, 1) * 4 * effectMultiplier, true);
         }
       }
       case CHERRY_LEAVES -> {
-        queueHealingSource(currentTeam, currentTeam.getMaxHealth() / 10, true);
+        queueHealingSource(currentTeam, (currentTeam.getMaxHealth() / 10) * effectMultiplier, true);
       }
       case MOSS_BLOCK -> {
         if (level != null && pos != null) {
@@ -206,29 +214,28 @@ public class GameLogic {
         }
       }
       case NETHERRACK -> {
-        queueDamageSource(currentTeam, currentTeam.getLastDamageDealt(), true);
+        queueDamageSource(currentTeam, currentTeam.getLastDamageDealt() * effectMultiplier, true);
       }
       case VAULT -> {
         if (currentTeam.removeOneCardFromDeck(CreateBlocks.VAULT)) {
-          queueShieldSource(currentTeam, 8, true);
-          queueHealingSource(currentTeam, 8, true);
+          queueShieldSource(currentTeam, 8 * effectMultiplier, true);
+          queueHealingSource(currentTeam, 8 * effectMultiplier, true);
         }
       }
-      case SCULK -> enemyTeam.increaseMaxHealth(-2);
+      case SCULK -> enemyTeam.increaseMaxHealth(-2 * effectMultiplier);
       case END_CRYSTAL -> {
-        if (level != null && pos != null) {
+        if (!areExplosionsDisabled() && level != null && pos != null) {
           breakBlocksInCube(level, pos, 2, true);
+          return null;
         }
-
-        return null;
       }
       case FURNACE -> {
         if (level != null && pos != null) {
-          queueShieldSource(currentTeam, countNearbyBlocks(level, pos, 1), true);
+          queueShieldSource(currentTeam, countNearbyBlocks(level, pos, 1) * effectMultiplier, true);
         }
       }
       case LAPIS_BLOCK -> {
-        queueHealingSource(currentTeam, (currentTeam.getHealth() + 1) / 2, true);
+        queueHealingSource(currentTeam, ((currentTeam.getHealth() + 1) / 2) * effectMultiplier, true);
         currentTeam.replaceOneCardInDeck(CreateBlocks.LAPIS_BLOCK, CreateBlocks.DIRT);
 
         if (level != null && pos != null) {
@@ -238,14 +245,14 @@ public class GameLogic {
         return CreateBlocks.DIRT;
       }
       case DEEPSLATE_BRICKS -> {
-        queueDamageSource(currentTeam, currentTeam.getShield() * 2, true);
+        queueDamageSource(currentTeam, currentTeam.getShield() * 2 * effectMultiplier, true);
       }
       case REINFORCED_DEEPSLATE -> {
-        queueShieldSource(currentTeam, Math.min(currentTeam.getShield(), 10), true);
+        queueShieldSource(currentTeam, Math.min(currentTeam.getShield(), 10) * effectMultiplier, true);
       }
       case WITHER_SKELETON_SKULL -> {
         if (enemyTeam.getShield() > 6) {
-          queueDamageSource(currentTeam, 8, true);
+          queueDamageSource(currentTeam, 8 * effectMultiplier, true);
         }
       }
       case WITHER_ROSE -> {
@@ -253,30 +260,30 @@ public class GameLogic {
           int replacedGrassBlocks = replaceNearbyGrassWithSoulSand(level, pos, 1);
 
           if (replacedGrassBlocks > 0) {
-            queueDamageSource(currentTeam, replacedGrassBlocks * 3, true);
-            queueHealingSource(currentTeam, replacedGrassBlocks, true);
+            queueDamageSource(currentTeam, replacedGrassBlocks * 3 * effectMultiplier, true);
+            queueHealingSource(currentTeam, replacedGrassBlocks * effectMultiplier, true);
           }
         }
       }
       case LECTERN -> {
-        queueDamageSource(currentTeam, currentTeam.getHandSize(), true);
+        queueDamageSource(currentTeam, currentTeam.getHandSize() * effectMultiplier, true);
       }
       case SMITHING_TABLE -> {
-        queueDamageSource(currentTeam, countBlocksOnBoard(Classification.MAN_MADE, battleBlock), true);
+        queueDamageSource(currentTeam, countBlocksOnBoard(Classification.MAN_MADE, battleBlock) * effectMultiplier, true);
       }
-      case SOUL_TORCH -> currentTeam.queueTurnHealingBonus(4);
-      case REDSTONE_TORCH -> currentTeam.queueTurnDamageBonus(5);
-      case TORCH -> currentTeam.queueTurnShieldBonus(2);
+      case SOUL_TORCH -> currentTeam.queueTurnHealingBonus(4 * effectMultiplier);
+      case REDSTONE_TORCH -> currentTeam.queueTurnDamageBonus(5 * effectMultiplier);
+      case TORCH -> currentTeam.queueTurnShieldBonus(2 * effectMultiplier);
       case COPPER_TORCH -> currentTeam.queueIgnoreNextIncomingDamage();
       case CRIMSON_HYPHAE -> {
-        queueDamageSource(currentTeam, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock), true);
+        queueDamageSource(currentTeam, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, true);
       }
       case WARPED_HYPHAE -> {
-        queueHealingSource(currentTeam, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock), true);
+        queueHealingSource(currentTeam, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, true);
       }
-      case RAW_IRON_BLOCK -> currentTeam.queueTurnDamage(30);
-      case RAW_GOLD_BLOCK -> currentTeam.queueTurnShieldGain(6);
-      case RAW_COPPER_BLOCK -> currentTeam.queueTurnHealing(26);
+      case RAW_IRON_BLOCK -> currentTeam.queueTurnDamage(30 * effectMultiplier);
+      case RAW_GOLD_BLOCK -> currentTeam.queueTurnShieldGain(6 * effectMultiplier);
+      case RAW_COPPER_BLOCK -> currentTeam.queueTurnHealing(26 * effectMultiplier);
       case NETHERITE_BLOCK -> {
         currentTeam.replaceOneCardInDeck(CreateBlocks.NETHERITE_BLOCK, CreateBlocks.DIRT);
 
@@ -308,10 +315,19 @@ public class GameLogic {
       }
       case POINTED_DRIPSTONE -> {
         if (level != null && pos != null && Abilities.isPointedDripstoneUpsideDown(level, pos)) {
-          queueDamageSource(currentTeam, 8, true);
+          queueDamageSource(currentTeam, 8 * effectMultiplier, true);
         }
       }
-      case SOUL_SAND -> enemyTeam.queueTurnDrawModifier(-1);
+      case SOUL_SAND -> enemyTeam.queueTurnDrawModifier(-1 * effectMultiplier);
+      case RED_BED -> {
+        if (doBedsExplodeOnPlacement()) {
+          if (level != null && pos != null) {
+            breakBlocksAround(level, pos);
+          }
+
+          return null;
+        }
+      }
       default -> {
       }
     }
@@ -331,11 +347,26 @@ public class GameLogic {
     TeamSide resolvedActingSide = resolveActingSide(actingSide);
     BattleTeam currentTeam = getTeamForTurn(resolvedActingSide);
     BattleTeam enemyTeam = getEnemyTeamForTurn(resolvedActingSide);
+
+    if (!currentTeam.removeOneCardFromHand(battleBlock)) {
+      return false;
+    }
+
     BattleBlock placedBlock = applyOnPlaceAbility(battleBlock, currentTeam, enemyTeam, level, pos);
 
     queueImmediateBlockEffects(battleBlock, currentTeam, level, pos);
 
-    endTurn(resolvedActingSide);
+    if (level != null && pos != null && placedBlock != null && isWarpActive(BattleWarp.REDSTONE)) {
+      activatePlacedBlockNow(new OwnedPlacedBattleBlock(
+          currentTeam,
+          new PlacedBattleBlock(level, pos, placedBlock)));
+    }
+
+    boolean shouldEndTurn = battleState.consumePlacementThisTurn() <= 0;
+
+    if (shouldEndTurn) {
+      endTurn(resolvedActingSide);
+    }
 
     if (level != null && pos != null && placedBlock != null) {
       registerPlacedBlock(placedBlock, level, pos, resolvedActingSide);
@@ -349,11 +380,37 @@ public class GameLogic {
       return;
     }
 
+    if (isCoralSuppressedByWarp(battleBlock.id)) {
+      return;
+    }
+
+    if ((battleBlock.id == BattleBlockIDs.RED_BED && doBedsExplodeOnPlacement())
+        || (battleBlock.id == BattleBlockIDs.TNT && areExplosionsDisabled())
+        || (battleBlock.id == BattleBlockIDs.END_CRYSTAL && areExplosionsDisabled())) {
+      return;
+    }
+
     int statBonus = getPodzolStatBonus(currentTeam, level, pos);
     int damage = battleBlock.damage + statBonus;
     int healing = battleBlock.healing + statBonus;
     int shield = battleBlock.defence + statBonus;
     int shieldDamage = battleBlock.defenceDamage + statBonus;
+
+    if (isWarpActive(BattleWarp.BED_WARS)) {
+      if (battleBlock.id == BattleBlockIDs.OAK_PLANKS) {
+        shield += 1;
+      } else if (battleBlock.id == BattleBlockIDs.OBSIDIAN) {
+        shield += 2;
+      } else if (battleBlock.id == BattleBlockIDs.GLASS) {
+        shield += 3;
+      }
+    }
+
+    int effectMultiplier = getBlockEffectMultiplier(level, pos, battleBlock);
+    damage *= effectMultiplier;
+    healing *= effectMultiplier;
+    shield *= effectMultiplier;
+    shieldDamage *= effectMultiplier;
 
     if (!battleBlock.damagePerTurn && damage != 0) {
       if (battleBlock.id == BattleBlockIDs.SOUL_LANTERN) {
@@ -372,7 +429,7 @@ public class GameLogic {
     }
 
     if (!battleBlock.defenceDamagePerTurn && shieldDamage != 0) {
-      pendingShieldDamage += shieldDamage;
+      pendingShieldDamage += adjustShieldDamageAmount(shieldDamage);
     }
   }
 
@@ -389,30 +446,34 @@ public class GameLogic {
 
   private void queueDamageSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      pendingDamage += amount + currentTeam.getActiveTurnDamageBonus();
+      pendingDamage += adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
     }
   }
 
   private void queueDirectHealthDamageSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      pendingDirectHealthDamage += amount + currentTeam.getActiveTurnDamageBonus();
+      pendingDirectHealthDamage += adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
     }
   }
 
   private void queueHealingSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      int totalHealing = amount + currentTeam.getActiveTurnHealingBonus();
+      int totalHealing = adjustHealingAmount(amount + currentTeam.getActiveTurnHealingBonus());
       pendingHealing += totalHealing;
 
       if (currentTeam.isActiveHealingAlsoIncreasesMaxHealth() && totalHealing > 0) {
         pendingMaxHealthGain += totalHealing;
+      }
+
+      if (isWarpActive(BattleWarp.LUSH_CAVE) && totalHealing > 0) {
+        pendingDamage += totalHealing;
       }
     }
   }
 
   private void queueShieldSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      pendingShieldGain += amount + currentTeam.getActiveTurnShieldBonus();
+      pendingShieldGain += adjustShieldGainAmount(amount + currentTeam.getActiveTurnShieldBonus());
     }
   }
 
@@ -434,6 +495,10 @@ public class GameLogic {
   }
 
   private void queuePerTurnEffects(BattleTeam currentTeam, BattleTeam enemyTeam) {
+    if (arePerTurnBlocksDisabled()) {
+      return;
+    }
+
     ArrayList<PlacedBattleBlock> grownBlocks = new ArrayList<>();
     ArrayList<PlacedBattleBlock> placedBlocksSnapshot = new ArrayList<>(currentTeam.getPlacedBlocks());
 
@@ -476,7 +541,7 @@ public class GameLogic {
       }
 
       if (battleBlock.defenceDamagePerTurn) {
-        pendingShieldDamage += getPerTurnShieldDamageAmount(placedBlock, currentTeam);
+        pendingShieldDamage += adjustShieldDamageAmount(getPerTurnShieldDamageAmount(placedBlock, currentTeam));
       }
 
       applyPerTurnAbility(currentTeam, enemyTeam, placedBlock, grownBlocks);
@@ -554,16 +619,16 @@ public class GameLogic {
     switch (random.nextInt(6)) {
       case 0 -> {
         dealImmediateDamage(currentTeam, enemyTeam, 5);
-        currentTeam.takeHealthDamage(2);
+        dealDamageToTeam(currentTeam, 2);
       }
-      case 1 -> currentTeam.heal(currentTeam.getLastDamageTakenFromOpponent() / 4);
-      case 2 -> currentTeam.gainShield(6);
+      case 1 -> applyImmediateHealing(currentTeam, enemyTeam, currentTeam.getLastDamageTakenFromOpponent() / 4);
+      case 2 -> applyImmediateShieldGain(currentTeam, 6);
       case 3 -> currentTeam.queueTurnDrawModifier(2);
       case 4 -> enemyTeam.queueTurnDrawModifier(-1);
       case 5 -> {
         breakBlocksInCube(placedBlock.level(), placedBlock.pos(), 1, true);
         dealImmediateDamage(currentTeam, enemyTeam, 5);
-        currentTeam.takeHealthDamage(5);
+        dealDamageToTeam(currentTeam, 5);
       }
       default -> {
       }
@@ -585,6 +650,10 @@ public class GameLogic {
       return false;
     }
 
+    if (isCoralSuppressedByWarp(battleBlock.id)) {
+      return false;
+    }
+
     return switch (battleBlock.id) {
       case DAYLIGHT_DETECTOR -> isInSunlight(placedBlock.level(), placedBlock.pos());
       case SPAWNER -> !isInSunlight(placedBlock.level(), placedBlock.pos());
@@ -593,13 +662,20 @@ public class GameLogic {
   }
 
   private boolean isActivationSuppressed(BattleBlock battleBlock, ServerLevel level, BlockPos pos) {
+    if (isWarpActive(BattleWarp.VILLAGE_HOUSE) && isMobHead(battleBlock.id)) {
+      return true;
+    }
+
     return isMobHeadOrSpawner(battleBlock.id) && hasNearbyBlock(level, pos, 2, BattleBlockIDs.CANDLE);
   }
 
   private boolean isMobHeadOrSpawner(BattleBlockIDs battleBlockId) {
+    return battleBlockId == BattleBlockIDs.SPAWNER || isMobHead(battleBlockId);
+  }
+
+  private boolean isMobHead(BattleBlockIDs battleBlockId) {
     return switch (battleBlockId) {
-      case SPAWNER,
-          CREEPER_HEAD,
+      case CREEPER_HEAD,
           PIGLIN_HEAD,
           SKELETON_SKULL,
           WITHER_SKELETON_SKULL,
@@ -610,6 +686,10 @@ public class GameLogic {
   }
 
   private boolean isInSunlight(ServerLevel level, BlockPos pos) {
+    if (battleState.getActiveWarp().overridesSunlight()) {
+      return battleState.getActiveWarp().hasSunlight();
+    }
+
     return level.dimensionType().hasSkyLight()
         && level.getSkyDarken() < 4
         && level.canSeeSky(pos.above());
@@ -624,28 +704,65 @@ public class GameLogic {
   }
 
   private int getImmediateDamageAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
+    int damageAmount = placedBlock.battleBlock().damage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    damageAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
+
     return applyCarpetModifier(
         placedBlock,
-        placedBlock.battleBlock().damage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos()),
+        damageAmount,
         BattleBlockIDs.RED_CARPET);
   }
 
   private int getImmediateHealingAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
+    int healingAmount = placedBlock.battleBlock().healing + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    healingAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
+
     return applyCarpetModifier(
         placedBlock,
-        placedBlock.battleBlock().healing + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos()),
+        healingAmount,
         BattleBlockIDs.GREEN_CARPET);
   }
 
   private int getImmediateShieldAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
+    int shieldAmount = placedBlock.battleBlock().defence + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+
+    if (isWarpActive(BattleWarp.BED_WARS)) {
+      if (placedBlock.battleBlock().id == BattleBlockIDs.OAK_PLANKS) {
+        shieldAmount += 1;
+      } else if (placedBlock.battleBlock().id == BattleBlockIDs.OBSIDIAN) {
+        shieldAmount += 2;
+      } else if (placedBlock.battleBlock().id == BattleBlockIDs.GLASS) {
+        shieldAmount += 3;
+      }
+    }
+
+    shieldAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
+
     return applyCarpetModifier(
         placedBlock,
-        placedBlock.battleBlock().defence + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos()),
+        shieldAmount,
         BattleBlockIDs.BLUE_CARPET);
   }
 
   private int getImmediateShieldDamageAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
-    return placedBlock.battleBlock().defenceDamage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
+    int shieldDamageAmount = placedBlock.battleBlock().defenceDamage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    return shieldDamageAmount * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
   }
 
   private void activatePlacedBlockNow(OwnedPlacedBattleBlock trackedBlock) {
@@ -704,12 +821,12 @@ public class GameLogic {
     }
 
     if (placedBlock.battleBlock().defenceDamagePerTurn) {
-      pendingShieldDamage += getPerTurnShieldDamageAmount(placedBlock, ownerTeam);
+      pendingShieldDamage += adjustShieldDamageAmount(getPerTurnShieldDamageAmount(placedBlock, ownerTeam));
     } else {
       int shieldDamageAmount = getImmediateShieldDamageAmount(placedBlock, ownerTeam);
 
       if (shieldDamageAmount != 0) {
-        pendingShieldDamage += shieldDamageAmount;
+        pendingShieldDamage += adjustShieldDamageAmount(shieldDamageAmount);
       }
     }
   }
@@ -834,6 +951,7 @@ public class GameLogic {
     BattleTeam currentTeam = getTeamForTurn(resolvedActingSide);
     BattleTeam enemyTeam = getEnemyTeamForTurn(resolvedActingSide);
 
+    applyStartOfTurnWarpCosts(currentTeam, enemyTeam);
     queuePerTurnEffects(currentTeam, enemyTeam);
     queueQueuedTurnEffects(currentTeam);
 
@@ -841,8 +959,8 @@ public class GameLogic {
       currentTeam.increaseMaxHealth(pendingMaxHealthGain);
     }
 
-    currentTeam.heal(pendingHealing);
-    currentTeam.gainShield(pendingShieldGain);
+    applyImmediateHealing(currentTeam, enemyTeam, pendingHealing);
+    applyImmediateShieldGain(currentTeam, pendingShieldGain);
 
     int actualDamageDealt = 0;
 
@@ -851,20 +969,26 @@ public class GameLogic {
       pendingDirectHealthDamage = 0;
     }
 
+    if (shouldIgnoreDefenceForDamage()) {
+      pendingDirectHealthDamage += pendingDamage;
+      pendingDamage = 0;
+    }
+
     actualDamageDealt += enemyTeam.takeHealthDamage(pendingDamage);
     actualDamageDealt += enemyTeam.takeDirectHealthDamage(pendingDirectHealthDamage);
     enemyTeam.loseShield(pendingShieldDamage);
+    tryReviveWithBed(enemyTeam);
     currentTeam.recordLastDamageDealt(actualDamageDealt);
     enemyTeam.recordLastDamageTakenFromOpponent(actualDamageDealt);
     applyNetherGoldOreRetaliation(enemyTeam, actualDamageDealt);
     applyCactusReflection(enemyTeam, currentTeam, actualDamageDealt);
+    applyEndOfTurnWarpCosts(currentTeam, enemyTeam);
 
     currentTeam.clearActiveTurnEffects();
     clearPendingEffects();
     currentTeam.clearHand();
     battleState.setActiveSide(resolvedActingSide.otherSide());
-    battleState.getActiveTeam().activateQueuedTurnEffects();
-    drawHandForTeam(battleState.getActiveTeam());
+    beginActiveTurn();
   }
 
   public void resetBattle() {
@@ -878,8 +1002,7 @@ public class GameLogic {
       return;
     }
 
-    battleState.getActiveTeam().activateQueuedTurnEffects();
-    drawHandForTeam(battleState.getActiveTeam());
+    beginActiveTurn();
   }
 
   public void startGame() {
@@ -937,8 +1060,7 @@ public class GameLogic {
     battleState.getRedTeam().clearActiveTurnEffects();
     battleState.getBlueTeam().clearActiveTurnEffects();
     battleState.setActiveSide(side);
-    battleState.getActiveTeam().activateQueuedTurnEffects();
-    drawHandForTeam(battleState.getActiveTeam());
+    beginActiveTurn();
   }
 
   public void redrawActiveHand() {
@@ -986,13 +1108,91 @@ public class GameLogic {
     team.shuffleDrawPile();
   }
 
+  private void beginActiveTurn() {
+    BattleTeam activeTeam = battleState.getActiveTeam();
+    activeTeam.activateQueuedTurnEffects();
+
+    if (advanceWarpRoundAndMaybeFinishGame(activeTeam.getSide())) {
+      return;
+    }
+
+    int placementsThisTurn = getPlacementsPerTurnForNewTurn();
+    battleState.setRemainingPlacementsThisTurn(placementsThisTurn);
+    drawHandForTeam(activeTeam, getBaseHandSizeForNewTurn());
+
+    if (battleState.getActiveWarp() != BattleWarp.NONE) {
+      battleState.advanceActiveWarpTurnCount();
+    }
+  }
+
   private void drawHandForTeam(BattleTeam team) {
+    drawHandForTeam(team, getBaseHandSizeForCurrentTurn(team));
+  }
+
+  private void drawHandForTeam(BattleTeam team, int baseHandSize) {
     team.clearHand();
+
+    if (isWarpActive(BattleWarp.LIBRARY)) {
+      if (team.getDrawPile().isEmpty()) {
+        team.refillDrawPile();
+        team.shuffleDrawPile();
+      }
+
+      while (!team.getDrawPile().isEmpty()) {
+        team.addCardToHand(team.getDrawPile().remove(0));
+      }
+
+      return;
+    }
+
     deckManager.dealCards(team, Math.max(0,
-        BattleCardItems.HAND_SIZE
+        baseHandSize
             + team.getActiveTurnDrawModifier()
+            + getWarpDrawModifier()
             + countBlocksOnBoard(team, BattleBlockIDs.SHULKER_BOX)
             - countBlocksOnBoard(battleState.getOpponentOf(team.getSide()), BattleBlockIDs.SNOW)));
+  }
+
+  private boolean advanceWarpRoundAndMaybeFinishGame(TeamSide activeSide) {
+    if (!isWarpActive(BattleWarp.END) || battleState.getActiveWarpStarterSide() != activeSide) {
+      return false;
+    }
+
+    battleState.advanceActiveWarpRoundCount();
+
+    if (battleState.getActiveWarpRoundCount() < 3) {
+      return false;
+    }
+
+    finishGameFromEndWarp(determineEndWarpLosingSide(activeSide));
+    return true;
+  }
+
+  private TeamSide determineEndWarpLosingSide(TeamSide starterSide) {
+    BattleTeam redTeam = battleState.getRedTeam();
+    BattleTeam blueTeam = battleState.getBlueTeam();
+
+    if (redTeam.getHealth() == blueTeam.getHealth()) {
+      return starterSide.otherSide();
+    }
+
+    return redTeam.getHealth() < blueTeam.getHealth()
+        ? TeamSide.RED
+        : TeamSide.BLUE;
+  }
+
+  private void finishGameFromEndWarp(TeamSide losingSide) {
+    battleState.getTeam(losingSide).setHealth(0);
+
+    for (BattleTeam team : List.of(battleState.getRedTeam(), battleState.getBlueTeam())) {
+      team.clearHand();
+      team.clearQueuedTurnEffects();
+      team.clearActiveTurnEffects();
+    }
+
+    clearPendingEffects();
+    battleState.setRemainingPlacementsThisTurn(0);
+    battleState.setGameRunning(false);
   }
 
   private void clearPendingEffects() {
@@ -1033,6 +1233,10 @@ public class GameLogic {
   }
 
   int getPerTurnDamageAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
     int damageAmount = getPerTurnDamageAmount(placedBlock.battleBlock(), currentTeam)
         + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
 
@@ -1040,6 +1244,19 @@ public class GameLogic {
         && countExistingBlocksOnBoard(Classification.OTHERWORLDLY) >= 6) {
       damageAmount += 3;
     }
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.LAVA
+        && (isWarpActive(BattleWarp.NETHER)
+            || isWarpActive(BattleWarp.NETHER_STRIP_MINE)
+            || isWarpActive(BattleWarp.NETHER_FORTRESS))) {
+      damageAmount *= 2;
+    }
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.SPAWNER && isWarpActive(BattleWarp.NETHER_FORTRESS)) {
+      damageAmount = (damageAmount * 3) / 2;
+    }
+
+    damageAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
 
     return applyCarpetModifier(placedBlock, damageAmount, BattleBlockIDs.RED_CARPET);
   }
@@ -1055,6 +1272,10 @@ public class GameLogic {
   }
 
   private int getPerTurnHealingAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
     int healingAmount = placedBlock.battleBlock().healing
         + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
 
@@ -1063,18 +1284,41 @@ public class GameLogic {
       healingAmount += 3;
     }
 
+    healingAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
+
     return applyCarpetModifier(placedBlock, healingAmount, BattleBlockIDs.GREEN_CARPET);
   }
 
   private int getPerTurnShieldAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
+    int shieldAmount = placedBlock.battleBlock().defence + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.END_STONE && isWarpActive(BattleWarp.BED_WARS)) {
+      shieldAmount += 3;
+    }
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.SPAWNER && isWarpActive(BattleWarp.NETHER_FORTRESS)) {
+      shieldAmount = (shieldAmount * 3) / 2;
+    }
+
+    shieldAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
+
     return applyCarpetModifier(
         placedBlock,
-        placedBlock.battleBlock().defence + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos()),
+        shieldAmount,
         BattleBlockIDs.BLUE_CARPET);
   }
 
   private int getPerTurnShieldDamageAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
-    return placedBlock.battleBlock().defenceDamage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
+      return 0;
+    }
+
+    int shieldDamageAmount = placedBlock.battleBlock().defenceDamage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    return shieldDamageAmount * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
   }
 
   private int applyCarpetModifier(PlacedBattleBlock placedBlock, int amount, BattleBlockIDs carpetId) {
@@ -1093,7 +1337,20 @@ public class GameLogic {
     }
 
     OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
-    return trackedBlock == null || !isUnbreakableBattleBlock(trackedBlock.placedBlock().battleBlock().id);
+
+    if (trackedBlock == null) {
+      return true;
+    }
+
+    if (areAllBlocksBreakable()) {
+      return true;
+    }
+
+    if (isWarpActive(BattleWarp.NETHER_FORTRESS) && trackedBlock.placedBlock().battleBlock().id == BattleBlockIDs.NETHER_BRICKS) {
+      return false;
+    }
+
+    return !isUnbreakableBattleBlock(trackedBlock.placedBlock().battleBlock().id);
   }
 
   public void onBattleBlockBroken(ServerLevel level, BlockPos pos) {
@@ -1180,8 +1437,8 @@ public class GameLogic {
         }
 
         BattleTeam enemyTeam = battleState.getOpponentOf(team.getSide());
-        team.gainShield(4);
-        team.heal(10);
+        applyImmediateShieldGain(team, 4);
+        applyImmediateHealing(team, enemyTeam, 10);
         dealImmediateDamage(team, enemyTeam, 10);
       }
     }
@@ -1202,7 +1459,12 @@ public class GameLogic {
   }
 
   private void dealImmediateDamage(BattleTeam attackingTeam, BattleTeam defendingTeam, int amount) {
-    int actualDamageDealt = defendingTeam.takeHealthDamage(amount);
+    int adjustedAmount = adjustDamageAmount(amount);
+    int actualDamageDealt = shouldIgnoreDefenceForDamage()
+        ? defendingTeam.takeDirectHealthDamage(adjustedAmount)
+        : defendingTeam.takeHealthDamage(adjustedAmount);
+
+    tryReviveWithBed(defendingTeam);
     attackingTeam.recordLastDamageDealt(actualDamageDealt);
     defendingTeam.recordLastDamageTakenFromOpponent(actualDamageDealt);
     applyNetherGoldOreRetaliation(defendingTeam, actualDamageDealt);
@@ -1214,7 +1476,7 @@ public class GameLogic {
       return;
     }
 
-    damagedTeam.gainShield(countBlocksOnBoard(damagedTeam, BattleBlockIDs.NETHER_GOLD_ORE));
+    applyImmediateShieldGain(damagedTeam, countBlocksOnBoard(damagedTeam, BattleBlockIDs.NETHER_GOLD_ORE));
   }
 
   private int countBlocksOnBoard(BattleTeam team, BattleBlockIDs battleBlockId) {
@@ -1244,6 +1506,8 @@ public class GameLogic {
 
     triggerCalibratedSculkSensors(level, pos);
     triggerSculkShriekers(level, pos);
+    reevaluateActiveWarp(level, pos);
+    applyActiveWarpBoardEffectAt(level, pos);
   }
 
   public void onAnyBlockBroken(ServerLevel level, BlockPos pos) {
@@ -1254,6 +1518,7 @@ public class GameLogic {
     triggerSculkSensors(level, pos);
     triggerSculkCatalysts(level, pos);
     triggerSculkShriekers(level, pos);
+    reevaluateActiveWarp(level, pos);
   }
 
   private void triggerSculkSensors(ServerLevel level, BlockPos pos) {
@@ -1424,7 +1689,7 @@ public class GameLogic {
       case ANVIL -> dealImmediateDamage(ownerTeam, enemyTeam, blocksFallen * 6);
       case DAMAGED_ANVIL -> {
         dealImmediateDamage(ownerTeam, enemyTeam, blocksFallen * 10);
-        ownerTeam.takeHealthDamage(blocksFallen * 5);
+        dealDamageToTeam(ownerTeam, blocksFallen * 5);
       }
       default -> {
       }
@@ -1520,8 +1785,11 @@ public class GameLogic {
     }
 
     int reflectedDamage = (actualDamageDealt / 2) * cactusCount;
-    int actualReflectedDamage = attackingTeam.takeHealthDamage(reflectedDamage);
+    int actualReflectedDamage = shouldIgnoreDefenceForDamage()
+        ? attackingTeam.takeDirectHealthDamage(adjustDamageAmount(reflectedDamage))
+        : attackingTeam.takeHealthDamage(adjustDamageAmount(reflectedDamage));
 
+    tryReviveWithBed(attackingTeam);
     damagedTeam.recordLastDamageDealt(actualReflectedDamage);
     applyNetherGoldOreRetaliation(attackingTeam, actualReflectedDamage);
   }
@@ -1551,6 +1819,890 @@ public class GameLogic {
     }
 
     return null;
+  }
+
+  private boolean isWarpActive(BattleWarp warp) {
+    return battleState.getActiveWarp() == warp;
+  }
+
+  private boolean shouldIgnoreDefenceForDamage() {
+    return isWarpActive(BattleWarp.SOUL_SAND_VALLEY);
+  }
+
+  private boolean arePerTurnBlocksDisabled() {
+    return isWarpActive(BattleWarp.SOUL_SAND_VALLEY);
+  }
+
+  private boolean areExplosionsDisabled() {
+    return isWarpActive(BattleWarp.OCEAN);
+  }
+
+  private boolean doBedsExplodeOnPlacement() {
+    return isWarpActive(BattleWarp.END)
+        || isWarpActive(BattleWarp.NETHER)
+        || isWarpActive(BattleWarp.NETHER_STRIP_MINE)
+        || isWarpActive(BattleWarp.NETHER_FORTRESS);
+  }
+
+  private boolean areAllBlocksBreakable() {
+    return isWarpActive(BattleWarp.STRIP_MINE)
+        || isWarpActive(BattleWarp.NETHER_STRIP_MINE)
+        || isWarpActive(BattleWarp.DRIPSTONE_CAVE)
+        || isWarpActive(BattleWarp.CAVE);
+  }
+
+  private boolean isPlacementBlockedByWarp(String blockId) {
+    boolean blockedByNetherWarp = isWarpActive(BattleWarp.NETHER)
+        || isWarpActive(BattleWarp.NETHER_STRIP_MINE)
+        || isWarpActive(BattleWarp.NETHER_FORTRESS);
+
+    if (!blockedByNetherWarp) {
+      return false;
+    }
+
+    return blockId.equals(BattleBlockIDs.WATER.getId()) || blockId.equals(BattleBlockIDs.POWDER_SNOW.getId());
+  }
+
+  private boolean isCoralSuppressedByWarp(BattleBlockIDs battleBlockId) {
+    if (!(isWarpActive(BattleWarp.NETHER)
+        || isWarpActive(BattleWarp.NETHER_STRIP_MINE)
+        || isWarpActive(BattleWarp.NETHER_FORTRESS))) {
+      return false;
+    }
+
+    return switch (battleBlockId) {
+      case HORN_CORAL_BLOCK,
+          TUBE_CORAL_BLOCK,
+          BUBBLE_CORAL_BLOCK,
+          FIRE_CORAL_BLOCK,
+          BUBBLE_CORAL_FAN,
+          HORN_CORAL_FAN,
+          TUBE_CORAL_FAN -> true;
+      default -> false;
+    };
+  }
+
+  private int getWarpDrawModifier() {
+    return switch (battleState.getActiveWarp()) {
+      case STRIP_MINE, NETHER_STRIP_MINE -> 2;
+      default -> 0;
+    };
+  }
+
+  private int getPlacementsPerTurnForNewTurn() {
+    if (isWarpActive(BattleWarp.BLIZZARD)) {
+      return Math.max(1, battleState.getActiveWarpTurnCount() + 1);
+    }
+
+    return 1;
+  }
+
+  private int getBaseHandSizeForNewTurn() {
+    if (isWarpActive(BattleWarp.BLIZZARD)) {
+      return Math.max(1, battleState.getActiveWarpTurnCount() + 1);
+    }
+
+    return BattleCardItems.HAND_SIZE;
+  }
+
+  private int getBaseHandSizeForCurrentTurn(BattleTeam team) {
+    if (isWarpActive(BattleWarp.BLIZZARD) && team == battleState.getActiveTeam()) {
+      return Math.max(1, battleState.getRemainingPlacementsThisTurn());
+    }
+
+    return BattleCardItems.HAND_SIZE;
+  }
+
+  private int adjustDamageAmount(int amount) {
+    if (isWarpActive(BattleWarp.DRIPSTONE_CAVE)) {
+      return amount * 2;
+    }
+
+    return amount;
+  }
+
+  private int adjustHealingAmount(int amount) {
+    if (isWarpActive(BattleWarp.PALE_GARDEN)) {
+      return -amount;
+    }
+
+    return amount;
+  }
+
+  private int adjustShieldGainAmount(int amount) {
+    if (isWarpActive(BattleWarp.MESA)) {
+      return amount * 2;
+    }
+
+    return amount;
+  }
+
+  private int adjustShieldDamageAmount(int amount) {
+    int adjustedAmount = amount;
+
+    if (isWarpActive(BattleWarp.DRIPSTONE_CAVE)) {
+      adjustedAmount *= 2;
+    }
+
+    if (isWarpActive(BattleWarp.BASTION) || isWarpActive(BattleWarp.MESA)) {
+      adjustedAmount *= 2;
+    }
+
+    if (isWarpActive(BattleWarp.CAVE)) {
+      adjustedAmount /= 2;
+    }
+
+    return adjustedAmount;
+  }
+
+  private int getBlockEffectMultiplier(ServerLevel level, BlockPos pos, BattleBlock battleBlock) {
+    if (!isWarpActive(BattleWarp.BASTION) || level == null || pos == null || battleBlock == null) {
+      return 1;
+    }
+
+    return hasAdjacentGoldenBlock(level, pos) ? 2 : 1;
+  }
+
+  private boolean hasAdjacentGoldenBlock(ServerLevel level, BlockPos pos) {
+    for (Direction direction : Direction.values()) {
+      if (isGoldenBlockId(getBlockId(level, pos.relative(direction)))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private void applyImmediateHealing(BattleTeam team, BattleTeam enemyTeam, int amount) {
+    int adjustedAmount = adjustHealingAmount(amount);
+    team.heal(adjustedAmount);
+
+    if (isWarpActive(BattleWarp.LUSH_CAVE) && adjustedAmount > 0) {
+      dealImmediateDamage(team, enemyTeam, adjustedAmount);
+    }
+  }
+
+  private void applyImmediateShieldGain(BattleTeam team, int amount) {
+    team.gainShield(adjustShieldGainAmount(amount));
+  }
+
+  private int dealDamageToTeam(BattleTeam team, int amount) {
+    int adjustedAmount = adjustDamageAmount(amount);
+    int actualDamageDealt = shouldIgnoreDefenceForDamage()
+        ? team.takeDirectHealthDamage(adjustedAmount)
+        : team.takeHealthDamage(adjustedAmount);
+
+    tryReviveWithBed(team);
+    return actualDamageDealt;
+  }
+
+  private void applyStartOfTurnWarpCosts(BattleTeam currentTeam, BattleTeam enemyTeam) {
+    if (isWarpActive(BattleWarp.VILLAGE_HOUSE)) {
+      applyImmediateHealing(currentTeam, enemyTeam, 16);
+      applyImmediateHealing(enemyTeam, currentTeam, 16);
+    }
+
+    if (isWarpActive(BattleWarp.DEEP_DARK) && currentTeam.removeRandomCardFromDeck(random) == null) {
+      dealDamageToTeam(currentTeam, 30);
+    }
+
+    if (isWarpActive(BattleWarp.DESERT) && currentTeam.getShield() < 2) {
+      dealDamageToTeam(currentTeam, 20);
+    }
+
+    if (isWarpActive(BattleWarp.SWAMP)) {
+      dealDamageToTeam(currentTeam, 3);
+    }
+  }
+
+  private void applyEndOfTurnWarpCosts(BattleTeam currentTeam, BattleTeam enemyTeam) {
+  }
+
+  private void tryReviveWithBed(BattleTeam team) {
+    if (!isWarpActive(BattleWarp.BED_WARS) || team.getHealth() > 0) {
+      return;
+    }
+
+    for (PlacedBattleBlock placedBlock : new ArrayList<>(team.getPlacedBlocks())) {
+      if (placedBlock.battleBlock().id != BattleBlockIDs.RED_BED || !placedBlock.stillExists()) {
+        continue;
+      }
+
+      team.getPlacedBlocks().remove(placedBlock);
+      placedBlock.level().setBlock(placedBlock.pos(), Blocks.AIR.defaultBlockState(), 3);
+      team.setHealth(10);
+      onAnyBlockBroken(placedBlock.level(), placedBlock.pos());
+      return;
+    }
+  }
+
+  private void reevaluateActiveWarp(ServerLevel level, BlockPos changedPos) {
+    WarpMatch matchingWarp = findMatchingWarp(level, changedPos);
+    BattleWarp newWarp = matchingWarp == null ? BattleWarp.NONE : matchingWarp.warp();
+
+    if (newWarp == battleState.getActiveWarp()) {
+      return;
+    }
+
+    BattleWarp previousWarp = battleState.getActiveWarp();
+    TeamSide starterSide = matchingWarp == null
+        ? null
+        : resolveWarpStarterSide(level, matchingWarp.anchorPos(), changedPos);
+
+    battleState.setActiveWarp(newWarp);
+    battleState.setActiveWarpStarterSide(starterSide);
+    battleState.resetActiveWarpTurnCount();
+    battleState.setActiveWarpRoundCount(newWarp == BattleWarp.END && starterSide != null ? 1 : 0);
+
+    if (previousWarp == BattleWarp.FLOWER_FOREST) {
+      removeFlowerForestBonus(battleState.getRedTeam());
+      removeFlowerForestBonus(battleState.getBlueTeam());
+    }
+
+    if (newWarp == BattleWarp.FLOWER_FOREST) {
+      applyFlowerForestBonus(battleState.getRedTeam());
+      applyFlowerForestBonus(battleState.getBlueTeam());
+    }
+
+    applyBoardWideWarpEffects(level);
+
+    if (matchingWarp != null) {
+      placeWarpStructure(level, matchingWarp.anchorPos(), matchingWarp.warp());
+    }
+  }
+
+  private WarpMatch findMatchingWarp(ServerLevel level, BlockPos changedPos) {
+    ArrayList<BlockPos> candidatePositions = collectWarpCandidatePositions(level, changedPos);
+
+    for (BattleWarp warp : BattleWarp.values()) {
+      if (warp == BattleWarp.NONE || warp == BattleWarp.SWAMP) {
+        continue;
+      }
+
+      for (BlockPos candidatePos : candidatePositions) {
+        if (matchesWarpAt(level, candidatePos, warp)) {
+          return new WarpMatch(warp, candidatePos);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private ArrayList<BlockPos> collectWarpCandidatePositions(ServerLevel level, BlockPos changedPos) {
+    ArrayList<BlockPos> candidatePositions = new ArrayList<>();
+    Set<BlockPos> seenPositions = new HashSet<>();
+
+    if (changedPos != null) {
+      BlockPos immutablePos = changedPos.immutable();
+      candidatePositions.add(immutablePos);
+      seenPositions.add(immutablePos);
+    }
+
+    for (BattleTeam team : List.of(battleState.getRedTeam(), battleState.getBlueTeam())) {
+      for (PlacedBattleBlock placedBlock : team.getPlacedBlocks()) {
+        if (placedBlock.level() != level || !placedBlock.stillExists()) {
+          continue;
+        }
+
+        BlockPos immutablePos = placedBlock.pos().immutable();
+
+        if (seenPositions.add(immutablePos)) {
+          candidatePositions.add(immutablePos);
+        }
+      }
+    }
+
+    return candidatePositions;
+  }
+
+  private TeamSide resolveWarpStarterSide(ServerLevel level, BlockPos anchorPos, BlockPos changedPos) {
+    TeamSide starterSide = getTrackedOwnerSide(level, changedPos);
+
+    if (starterSide != null) {
+      return starterSide;
+    }
+
+    starterSide = getTrackedOwnerSide(level, anchorPos);
+
+    if (starterSide != null) {
+      return starterSide;
+    }
+
+    for (Direction direction : Direction.values()) {
+      starterSide = getTrackedOwnerSide(level, anchorPos.relative(direction));
+
+      if (starterSide != null) {
+        return starterSide;
+      }
+    }
+
+    return battleState.getActiveSide();
+  }
+
+  private TeamSide getTrackedOwnerSide(ServerLevel level, BlockPos pos) {
+    if (level == null || pos == null) {
+      return null;
+    }
+
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
+    return trackedBlock == null ? null : trackedBlock.ownerTeam().getSide();
+  }
+
+  private boolean matchesWarpAt(ServerLevel level, BlockPos pos, BattleWarp warp) {
+    return switch (warp) {
+      case VILLAGE_HOUSE -> matchesVillageHouseWarp(level, pos);
+      case END -> matchesEndWarp(level, pos);
+      case LIBRARY -> matchesLibraryWarp(level, pos);
+      case DEEP_DARK -> matchesDeepDarkWarp(level, pos);
+      case SOUL_SAND_VALLEY -> matchesSoulSandValleyWarp(level, pos);
+      case BLIZZARD -> matchesBlizzardWarp(level, pos);
+      case OCEAN -> matchesOceanWarp(level, pos);
+      case REDSTONE -> matchesRedstoneWarp(level, pos);
+      case NETHER_STRIP_MINE -> matchesNetherStripMineWarp(level, pos);
+      case NETHER -> matchesNetherWarp(level, pos);
+      case LUSH_CAVE -> matchesLushCaveWarp(level, pos);
+      case DESERT -> matchesDesertWarp(level, pos);
+      case STRIP_MINE -> matchesStripMineWarp(level, pos);
+      case BED_WARS -> matchesBedWarsWarp(level, pos);
+      case DRIPSTONE_CAVE -> matchesDripstoneCaveWarp(level, pos);
+      case NETHER_FORTRESS -> matchesNetherFortressWarp(level, pos);
+      case BASTION -> matchesBastionWarp(level, pos);
+      case FLOWER_FOREST -> matchesFlowerForestWarp(level, pos);
+      case CAVE -> matchesCaveWarp(level, pos);
+      case MESA -> matchesMesaWarp(level, pos);
+      case PALE_GARDEN -> matchesPaleGardenWarp(level, pos);
+      case NONE, SWAMP -> false;
+    };
+  }
+
+  private boolean matchesVillageHouseWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.RED_BED)) {
+      return hasHorizontalAdjacent(
+          level,
+          pos,
+          BattleBlockIDs.RED_CARPET,
+          BattleBlockIDs.BLUE_CARPET,
+          BattleBlockIDs.GREEN_CARPET,
+          BattleBlockIDs.PALE_MOSS_CARPET,
+          BattleBlockIDs.CAKE,
+          BattleBlockIDs.JUNGLE_LOG,
+          BattleBlockIDs.BOOKSHELF);
+    }
+
+    return isAnyBlock(
+        level,
+        pos,
+        BattleBlockIDs.RED_CARPET,
+        BattleBlockIDs.BLUE_CARPET,
+        BattleBlockIDs.GREEN_CARPET,
+        BattleBlockIDs.PALE_MOSS_CARPET,
+        BattleBlockIDs.CAKE,
+        BattleBlockIDs.JUNGLE_LOG,
+        BattleBlockIDs.BOOKSHELF)
+        && hasHorizontalAdjacent(level, pos, BattleBlockIDs.RED_BED);
+  }
+
+  private boolean matchesEndWarp(ServerLevel level, BlockPos pos) {
+    if (isAnyBlock(level, pos, BattleBlockIDs.DRAGON_HEAD, BattleBlockIDs.SHULKER_BOX, BattleBlockIDs.DRAGON_EGG)) {
+      return isBlock(level, pos.below(), BattleBlockIDs.END_STONE);
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.END_STONE)
+        && isAnyBlock(level, pos.above(), BattleBlockIDs.DRAGON_HEAD, BattleBlockIDs.SHULKER_BOX, BattleBlockIDs.DRAGON_EGG);
+  }
+
+  private boolean matchesLibraryWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.CANDLE)) {
+      return isAnyBlock(level, pos.below(), BattleBlockIDs.BOOKSHELF, BattleBlockIDs.CHISELED_BOOKSHELF);
+    }
+
+    if (isBlock(level, pos, BattleBlockIDs.BOOKSHELF)) {
+      return hasHorizontalAdjacent(level, pos, BattleBlockIDs.CHISELED_BOOKSHELF, BattleBlockIDs.LECTERN)
+          || isBlock(level, pos.above(), BattleBlockIDs.CANDLE);
+    }
+
+    if (isBlock(level, pos, BattleBlockIDs.CHISELED_BOOKSHELF)) {
+      return hasHorizontalAdjacent(level, pos, BattleBlockIDs.BOOKSHELF, BattleBlockIDs.LECTERN)
+          || isBlock(level, pos.above(), BattleBlockIDs.CANDLE);
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.LECTERN)
+        && hasHorizontalAdjacent(level, pos, BattleBlockIDs.BOOKSHELF, BattleBlockIDs.CHISELED_BOOKSHELF);
+  }
+
+  private boolean matchesDeepDarkWarp(ServerLevel level, BlockPos pos) {
+    BattleBlockIDs centerBlockId = getBattleBlockId(level, pos);
+
+    if (centerBlockId == null || !isDeepDarkWarpBlock(centerBlockId)) {
+      return false;
+    }
+
+    for (Direction direction : Direction.values()) {
+      BattleBlockIDs adjacentBlockId = getBattleBlockId(level, pos.relative(direction));
+
+      if (adjacentBlockId != null && adjacentBlockId != centerBlockId && isDeepDarkWarpBlock(adjacentBlockId)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private boolean matchesSoulSandValleyWarp(ServerLevel level, BlockPos pos) {
+    return isAnyBlock(level, pos, BattleBlockIDs.SOUL_CAMPFIRE, BattleBlockIDs.SOUL_LANTERN, BattleBlockIDs.SOUL_TORCH)
+        && isBlock(level, pos.below(), BattleBlockIDs.SOUL_SAND);
+  }
+
+  private boolean matchesBlizzardWarp(ServerLevel level, BlockPos pos) {
+    if (isAnyBlock(level, pos, BattleBlockIDs.SNOW, BattleBlockIDs.POWDER_SNOW)) {
+      return hasAdjacent(level, pos, BattleBlockIDs.SNOW, BattleBlockIDs.POWDER_SNOW)
+          || isBlock(level, pos.above(), BattleBlockIDs.LIGHTNING_ROD);
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.LIGHTNING_ROD)
+        && isAnyBlock(level, pos.below(), BattleBlockIDs.SNOW, BattleBlockIDs.POWDER_SNOW);
+  }
+
+  private boolean matchesOceanWarp(ServerLevel level, BlockPos pos) {
+    if (isCoralBlock(level, pos) && hasAdjacent(level, pos, BattleBlockIDs.WATER) && hasAdjacent(level, pos, BattleBlockIDs.PRISMARINE)) {
+      return true;
+    }
+
+    if (isBlock(level, pos, BattleBlockIDs.WATER)) {
+      if (hasAdjacent(level, pos, BattleBlockIDs.PRISMARINE)) {
+        return true;
+      }
+
+      if (countAdjacent(level, pos, BattleBlockIDs.WATER) >= 2) {
+        return true;
+      }
+
+      return hasAdjacentCoralBlock(level, pos);
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.PRISMARINE) && hasAdjacent(level, pos, BattleBlockIDs.WATER);
+  }
+
+  private boolean matchesRedstoneWarp(ServerLevel level, BlockPos pos) {
+    return isAnyBlock(level, pos, BattleBlockIDs.REDSTONE_TORCH, BattleBlockIDs.REPEATER)
+        && isBlock(level, pos.below(), BattleBlockIDs.REDSTONE_BLOCK);
+  }
+
+  private boolean matchesNetherStripMineWarp(ServerLevel level, BlockPos pos) {
+    BattleBlockIDs centerBlockId = getBattleBlockId(level, pos);
+
+    if (centerBlockId == null || !isAnyNetherStripMineBlock(centerBlockId)) {
+      return false;
+    }
+
+    for (Direction direction : Direction.values()) {
+      BattleBlockIDs adjacentBlockId = getBattleBlockId(level, pos.relative(direction));
+
+      if (adjacentBlockId != null && adjacentBlockId != centerBlockId && isAnyNetherStripMineBlock(adjacentBlockId)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private boolean matchesNetherWarp(ServerLevel level, BlockPos pos) {
+    return isAnyBlock(level, pos, BattleBlockIDs.LAVA, BattleBlockIDs.MAGMA_BLOCK, BattleBlockIDs.CAMPFIRE)
+        && isAnyBlock(level, pos.below(), BattleBlockIDs.OBSIDIAN, BattleBlockIDs.NETHERRACK);
+  }
+
+  private boolean matchesLushCaveWarp(ServerLevel level, BlockPos pos) {
+    return isAnyBlock(level, pos, BattleBlockIDs.MOSS_BLOCK, BattleBlockIDs.FARMLAND)
+        && isAnyBlock(level, pos.below(), BattleBlockIDs.DEEPSLATE, BattleBlockIDs.DEEPSLATE_GOLD_ORE, BattleBlockIDs.DEEPSLATE_REDSTONE_ORE);
+  }
+
+  private boolean matchesDesertWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.DEAD_BUSH) && isBlock(level, pos.below(), BattleBlockIDs.SAND)) {
+      return true;
+    }
+
+    if (isBlock(level, pos, BattleBlockIDs.CACTUS)
+        && isBlock(level, pos.below(), BattleBlockIDs.SAND)
+        && hasAdjacent(level, pos.below(), BattleBlockIDs.SAND)) {
+      return true;
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.SAND)
+        && hasAdjacent(level, pos, BattleBlockIDs.SANDSTONE, BattleBlockIDs.SMOOTH_SANDSTONE, BattleBlockIDs.CUT_SANDSTONE);
+  }
+
+  private boolean matchesStripMineWarp(ServerLevel level, BlockPos pos) {
+    BattleBlockIDs centerBlockId = getBattleBlockId(level, pos);
+
+    if (centerBlockId == null || !isAnyStripMineBlock(centerBlockId)) {
+      return false;
+    }
+
+    for (Direction direction : Direction.values()) {
+      BattleBlockIDs adjacentBlockId = getBattleBlockId(level, pos.relative(direction));
+
+      if (adjacentBlockId != null
+          && isAnyStripMineBlock(adjacentBlockId)
+          && (centerBlockId != BattleBlockIDs.DEEPSLATE || adjacentBlockId != BattleBlockIDs.DEEPSLATE)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private boolean matchesBedWarsWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.RED_BED)) {
+      return countHorizontalRingBlocks(level, pos, BattleBlockIDs.OAK_PLANKS) >= 8
+          || countAdjacentAndAbove(level, pos, BattleBlockIDs.END_STONE) >= 2;
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.END_STONE)
+        && countAdjacent(level, pos, BattleBlockIDs.OAK_PLANKS) >= 4
+        && hasAdjacent(level, pos, BattleBlockIDs.END_STONE);
+  }
+
+  private boolean matchesDripstoneCaveWarp(ServerLevel level, BlockPos pos) {
+    return isBlock(level, pos, BattleBlockIDs.POINTED_DRIPSTONE)
+        && hasAdjacent(level, pos, BattleBlockIDs.DEEPSLATE, BattleBlockIDs.DEEPSLATE_GOLD_ORE, BattleBlockIDs.DEEPSLATE_REDSTONE_ORE);
+  }
+
+  private boolean matchesNetherFortressWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.SPAWNER) && isBlock(level, pos.below(), BattleBlockIDs.NETHER_BRICKS)) {
+      return true;
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.LAVA) && hasAdjacent(level, pos, BattleBlockIDs.NETHER_BRICKS);
+  }
+
+  private boolean matchesBastionWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.PIGLIN_HEAD)
+        && isAnyBlock(level, pos.below(), BattleBlockIDs.SPAWNER, BattleBlockIDs.POLISHED_BLACKSTONE_BRICKS)) {
+      return true;
+    }
+
+    if (isBlock(level, pos, BattleBlockIDs.GOLD_BLOCK) && isBlock(level, pos.below(), BattleBlockIDs.POLISHED_BLACKSTONE_BRICKS)) {
+      return true;
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.POLISHED_BLACKSTONE_BRICKS) && hasAdjacent(level, pos, BattleBlockIDs.NETHER_GOLD_ORE);
+  }
+
+  private boolean matchesFlowerForestWarp(ServerLevel level, BlockPos pos) {
+    if (isFlowerBlock(level, pos) && isBlock(level, pos.below(), BattleBlockIDs.GRASS_BLOCK)) {
+      return hasAdjacent(level, pos.below(), BattleBlockIDs.GRASS_BLOCK);
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.GRASS_BLOCK)
+        && isFlowerBlock(level, pos.above())
+        && hasAdjacent(level, pos, BattleBlockIDs.GRASS_BLOCK);
+  }
+
+  private boolean matchesCaveWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.TORCH) && isBlock(level, pos.below(), BattleBlockIDs.DEEPSLATE)) {
+      return true;
+    }
+
+    return isBlock(level, pos, BattleBlockIDs.REINFORCED_DEEPSLATE)
+        && isAnyBlock(level, pos.below(), BattleBlockIDs.DEEPSLATE_GOLD_ORE, BattleBlockIDs.DEEPSLATE_REDSTONE_ORE);
+  }
+
+  private boolean matchesMesaWarp(ServerLevel level, BlockPos pos) {
+    if (isBlock(level, pos, BattleBlockIDs.DEAD_BUSH) && isBlock(level, pos.below(), BattleBlockIDs.RED_SAND)) {
+      return true;
+    }
+
+    if (isBlock(level, pos, BattleBlockIDs.CACTUS)
+        && isBlock(level, pos.below(), BattleBlockIDs.RED_SAND)
+        && hasAdjacent(level, pos.below(), BattleBlockIDs.RED_SAND)) {
+      return true;
+    }
+
+    BattleBlockIDs centerBlockId = getBattleBlockId(level, pos);
+
+    if (centerBlockId == null) {
+      return false;
+    }
+
+    return switch (centerBlockId) {
+      case RED_SAND -> hasAdjacent(level, pos, BattleBlockIDs.RED_SANDSTONE, BattleBlockIDs.SMOOTH_RED_SANDSTONE, BattleBlockIDs.CUT_RED_SANDSTONE, BattleBlockIDs.CHISELED_RED_SANDSTONE);
+      case RED_SANDSTONE, SMOOTH_RED_SANDSTONE, CUT_RED_SANDSTONE, CHISELED_RED_SANDSTONE -> hasAdjacent(level, pos, BattleBlockIDs.RED_SAND, BattleBlockIDs.RED_SANDSTONE, BattleBlockIDs.SMOOTH_RED_SANDSTONE, BattleBlockIDs.CUT_RED_SANDSTONE, BattleBlockIDs.CHISELED_RED_SANDSTONE);
+      default -> false;
+    };
+  }
+
+  private boolean matchesPaleGardenWarp(ServerLevel level, BlockPos pos) {
+    return isBlock(level, pos, BattleBlockIDs.CREAKING_HEART)
+        && isBlock(level, pos.above(), BattleBlockIDs.PALE_OAK_LOG)
+        && isBlock(level, pos.below(), BattleBlockIDs.PALE_OAK_LOG);
+  }
+
+  private void applyBoardWideWarpEffects(ServerLevel level) {
+    if (level == null) {
+      return;
+    }
+
+    for (BattleTeam team : List.of(battleState.getRedTeam(), battleState.getBlueTeam())) {
+      for (PlacedBattleBlock placedBlock : new ArrayList<>(team.getPlacedBlocks())) {
+        if (placedBlock.level() != level || !placedBlock.stillExists()) {
+          continue;
+        }
+
+        applyActiveWarpBoardEffectAt(level, placedBlock.pos());
+      }
+    }
+  }
+
+  private void applyActiveWarpBoardEffectAt(ServerLevel level, BlockPos pos) {
+    String blockId = getBlockId(level, pos);
+
+    if (isWarpActive(BattleWarp.OCEAN)) {
+      if (isFireRelatedBlockId(blockId)) {
+        removeTrackedBlockSilently(level, pos);
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+        return;
+      }
+
+      if (blockId.equals(BattleBlockIDs.GRASS_BLOCK.getId())) {
+        replaceTrackedBlock(level, pos, Blocks.FARMLAND.defaultBlockState(), CreateBlocks.FARMLAND);
+        return;
+      }
+    }
+
+    if (isWarpActive(BattleWarp.BLIZZARD) && blockId.equals(BattleBlockIDs.WATER.getId())) {
+      removeTrackedBlockSilently(level, pos);
+      level.setBlock(pos, Blocks.ICE.defaultBlockState(), 3);
+      return;
+    }
+
+    if ((isWarpActive(BattleWarp.NETHER)
+        || isWarpActive(BattleWarp.NETHER_STRIP_MINE)
+        || isWarpActive(BattleWarp.NETHER_FORTRESS))
+        && (blockId.equals(BattleBlockIDs.WATER.getId()) || blockId.equals(BattleBlockIDs.POWDER_SNOW.getId()))) {
+      removeTrackedBlockSilently(level, pos);
+      level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+    }
+  }
+
+  private void applyFlowerForestBonus(BattleTeam team) {
+    team.increaseMaxHealth(70);
+    team.setHealth(team.getHealth() + 70);
+  }
+
+  private void removeFlowerForestBonus(BattleTeam team) {
+    team.setHealth(team.getHealth() - 70);
+    team.increaseMaxHealth(-70);
+  }
+
+  private void placeWarpStructure(ServerLevel level, BlockPos anchorPos, BattleWarp warp) {
+    Identifier structureId = warp.getStructureId();
+
+    if (level == null || anchorPos == null || structureId == null) {
+      return;
+    }
+
+    try {
+      var template = level.getStructureManager().get(structureId);
+
+      if (template.isEmpty()) {
+        BlockBattlesMod.LOGGER.warn("Warp structure {} was not found. Skipping placement.", structureId);
+        return;
+      }
+
+      template.get().placeInWorld(
+          level,
+          anchorPos,
+          anchorPos,
+          new StructurePlaceSettings(),
+          level.getRandom(),
+          3);
+    } catch (RuntimeException exception) {
+      BlockBattlesMod.LOGGER.warn("Could not place warp structure {}.", structureId, exception);
+    }
+  }
+
+  private void replaceTrackedBlock(ServerLevel level, BlockPos pos, net.minecraft.world.level.block.state.BlockState replacementState, BattleBlock replacementBattleBlock) {
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
+
+    if (trackedBlock != null) {
+      trackedBlock.ownerTeam().getPlacedBlocks().remove(trackedBlock.placedBlock());
+      trackedBlock.ownerTeam().addPlacedBlock(new PlacedBattleBlock(level, pos, replacementBattleBlock));
+    }
+
+    level.setBlock(pos, replacementState, 3);
+  }
+
+  private String getBlockId(ServerLevel level, BlockPos pos) {
+    return BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock()).toString();
+  }
+
+  private BattleBlockIDs getBattleBlockId(ServerLevel level, BlockPos pos) {
+    return CreateBlocks.findByMinecraftId(getBlockId(level, pos))
+        .map(battleBlock -> battleBlock.id)
+        .orElse(null);
+  }
+
+  private boolean isBlock(ServerLevel level, BlockPos pos, BattleBlockIDs battleBlockId) {
+    return getBlockId(level, pos).equals(battleBlockId.getId());
+  }
+
+  private boolean isAnyBlock(ServerLevel level, BlockPos pos, BattleBlockIDs... battleBlockIds) {
+    String blockId = getBlockId(level, pos);
+
+    for (BattleBlockIDs battleBlockId : battleBlockIds) {
+      if (blockId.equals(battleBlockId.getId())) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private boolean hasAdjacent(ServerLevel level, BlockPos pos, BattleBlockIDs... battleBlockIds) {
+    for (Direction direction : Direction.values()) {
+      if (isAnyBlock(level, pos.relative(direction), battleBlockIds)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private int countAdjacent(ServerLevel level, BlockPos pos, BattleBlockIDs... battleBlockIds) {
+    int count = 0;
+
+    for (Direction direction : Direction.values()) {
+      if (isAnyBlock(level, pos.relative(direction), battleBlockIds)) {
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  private int countAdjacentAndAbove(ServerLevel level, BlockPos pos, BattleBlockIDs battleBlockId) {
+    int count = countAdjacent(level, pos, battleBlockId);
+
+    if (isBlock(level, pos.above(), battleBlockId)) {
+      count++;
+    }
+
+    return count;
+  }
+
+  private boolean hasHorizontalAdjacent(ServerLevel level, BlockPos pos, BattleBlockIDs... battleBlockIds) {
+    for (Direction direction : Direction.Plane.HORIZONTAL) {
+      if (isAnyBlock(level, pos.relative(direction), battleBlockIds)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private int countHorizontalRingBlocks(ServerLevel level, BlockPos pos, BattleBlockIDs battleBlockId) {
+    int count = 0;
+
+    for (int offsetX = -1; offsetX <= 1; offsetX++) {
+      for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
+        if (offsetX == 0 && offsetZ == 0) {
+          continue;
+        }
+
+        if (isBlock(level, pos.offset(offsetX, 0, offsetZ), battleBlockId)) {
+          count++;
+        }
+      }
+    }
+
+    return count;
+  }
+
+  private boolean hasAdjacentCoralBlock(ServerLevel level, BlockPos pos) {
+    for (Direction direction : Direction.values()) {
+      if (isCoralBlock(level, pos.relative(direction))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private boolean isCoralBlock(ServerLevel level, BlockPos pos) {
+    return isAnyBlock(
+        level,
+        pos,
+        BattleBlockIDs.HORN_CORAL_BLOCK,
+        BattleBlockIDs.TUBE_CORAL_BLOCK,
+        BattleBlockIDs.BUBBLE_CORAL_BLOCK,
+        BattleBlockIDs.FIRE_CORAL_BLOCK);
+  }
+
+  private boolean isFlowerBlock(ServerLevel level, BlockPos pos) {
+    return isAnyBlock(
+        level,
+        pos,
+        BattleBlockIDs.RED_TULIP,
+        BattleBlockIDs.CORNFLOWER,
+        BattleBlockIDs.PINK_PETALS,
+        BattleBlockIDs.TORCHFLOWER,
+        BattleBlockIDs.WITHER_ROSE);
+  }
+
+  private boolean isDeepDarkWarpBlock(BattleBlockIDs battleBlockId) {
+    return switch (battleBlockId) {
+      case SCULK_SENSOR,
+          CALIBRATED_SCULK_SENSOR,
+          SCULK_SHRIEKER,
+          SCULK_CATALYST,
+          SCULK -> true;
+      default -> false;
+    };
+  }
+
+  private boolean isAnyNetherStripMineBlock(BattleBlockIDs battleBlockId) {
+    return switch (battleBlockId) {
+      case NETHER_GOLD_ORE, NETHER_QUARTZ_ORE, ANCIENT_DEBRIS -> true;
+      default -> false;
+    };
+  }
+
+  private boolean isAnyStripMineBlock(BattleBlockIDs battleBlockId) {
+    return switch (battleBlockId) {
+      case DEEPSLATE, DEEPSLATE_GOLD_ORE, DEEPSLATE_REDSTONE_ORE -> true;
+      default -> false;
+    };
+  }
+
+  private boolean isAnyRedSandWarpBlock(BattleBlockIDs battleBlockId) {
+    return switch (battleBlockId) {
+      case RED_SAND, RED_SANDSTONE, SMOOTH_RED_SANDSTONE, CUT_RED_SANDSTONE, CHISELED_RED_SANDSTONE -> true;
+      default -> false;
+    };
+  }
+
+  private boolean isFireRelatedBlockId(String blockId) {
+    return blockId.equals(BattleBlockIDs.LAVA.getId())
+        || blockId.equals(BattleBlockIDs.MAGMA_BLOCK.getId())
+        || blockId.equals(BattleBlockIDs.CAMPFIRE.getId())
+        || blockId.equals(BattleBlockIDs.SOUL_CAMPFIRE.getId())
+        || blockId.equals(BattleBlockIDs.TORCH.getId())
+        || blockId.equals(BattleBlockIDs.SOUL_TORCH.getId())
+        || blockId.equals(BattleBlockIDs.REDSTONE_TORCH.getId())
+        || blockId.equals(BattleBlockIDs.COPPER_TORCH.getId())
+        || blockId.equals(BattleBlockIDs.CANDLE.getId())
+        || blockId.equals(BattleBlockIDs.TORCHFLOWER.getId());
+  }
+
+  private boolean isGoldenBlockId(String blockId) {
+    return blockId.equals(BattleBlockIDs.GOLD_BLOCK.getId())
+        || blockId.equals(BattleBlockIDs.RAW_GOLD_BLOCK.getId())
+        || blockId.equals(BattleBlockIDs.NETHER_GOLD_ORE.getId())
+        || blockId.equals(BattleBlockIDs.DEEPSLATE_GOLD_ORE.getId());
+  }
+
+  private record WarpMatch(BattleWarp warp, BlockPos anchorPos) {
   }
 
   private record OwnedPlacedBattleBlock(BattleTeam ownerTeam, PlacedBattleBlock placedBlock) {

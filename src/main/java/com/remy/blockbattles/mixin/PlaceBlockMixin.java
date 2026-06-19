@@ -93,11 +93,12 @@ public class PlaceBlockMixin {
 
     if (handled) {
       BlockBattlesMod.GAME_LOGIC.syncBattleHands(serverLevel.getServer());
-      BlockBattlesMod.GAME_LOGIC.syncTrackedBattleBlocks(serverLevel.getServer());
-      BattleScoreboards.updateScoreboard(
-          serverLevel.getServer(),
-          BlockBattlesMod.BATTLE_STATE);
     }
+
+    BlockBattlesMod.GAME_LOGIC.syncTrackedBattleBlocks(serverLevel.getServer());
+    BattleScoreboards.updateScoreboard(
+        serverLevel.getServer(),
+        BlockBattlesMod.BATTLE_STATE);
   }
 
   private static BlockPos blockBattles$resolvePlacedPos(BlockPlaceContext context, BlockState state) {

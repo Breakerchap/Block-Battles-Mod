@@ -60,7 +60,7 @@ public class BattleScoreboards {
         "bb_red_health",
         Component.literal("Red Health").withStyle(ChatFormatting.RED),
         redTeam.getHealth(),
-        6);
+        7);
 
     setScore(
         scoreboard,
@@ -68,7 +68,7 @@ public class BattleScoreboards {
         "bb_red_shield",
         Component.literal("Red Shield").withStyle(ChatFormatting.RED),
         redTeam.getShield(),
-        5);
+        6);
 
     setScore(
         scoreboard,
@@ -76,7 +76,7 @@ public class BattleScoreboards {
         "bb_blue_health",
         Component.literal("Blue Health").withStyle(ChatFormatting.BLUE),
         blueTeam.getHealth(),
-        4);
+        5);
 
     setScore(
         scoreboard,
@@ -84,6 +84,16 @@ public class BattleScoreboards {
         "bb_blue_shield",
         Component.literal("Blue Shield").withStyle(ChatFormatting.BLUE),
         blueTeam.getShield(),
+        4);
+
+    setTextLine(
+        scoreboard,
+        objective,
+        "bb_warp",
+        Component.literal("Warp: ")
+            .withStyle(ChatFormatting.WHITE)
+            .append(Component.literal(battleState.getActiveWarp().getDisplayName())
+                .withStyle(ChatFormatting.LIGHT_PURPLE)),
         3);
 
     setTextLine(

@@ -393,6 +393,10 @@ public class BlockBattlesMod implements ModInitializer {
         () -> Component.literal("Active Turn: " + BATTLE_STATE.getActiveSide().getDisplayName()),
         false);
     source.sendSuccess(
+        () -> Component.literal("Warp: " + BATTLE_STATE.getActiveWarp().getDisplayName()
+            + " | Placements Left: " + BATTLE_STATE.getRemainingPlacementsThisTurn()),
+        false);
+    source.sendSuccess(
         () -> Component.literal("Red - HP " + redTeam.getHealth() + "/" + redTeam.getMaxHealth()
             + ", Shield " + redTeam.getShield()
             + ", Hand [" + formatHand(redTeam) + "]"

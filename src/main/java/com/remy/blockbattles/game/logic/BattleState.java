@@ -19,6 +19,11 @@ public class BattleState {
   private final ArrayList<BattleBlock> blueConfiguredDeck = new ArrayList<>();
   private TeamSide activeSide = TeamSide.RED;
   private boolean gameRunning;
+  private BattleWarp activeWarp = BattleWarp.NONE;
+  private TeamSide activeWarpStarterSide;
+  private int activeWarpTurnCount;
+  private int activeWarpRoundCount;
+  private int remainingPlacementsThisTurn = 1;
 
   private BattleState() {
     redConfiguredDeck.addAll(createRedStartingDeck());
@@ -54,6 +59,66 @@ public class BattleState {
 
   public boolean isGameRunning() {
     return gameRunning;
+  }
+
+  public BattleWarp getActiveWarp() {
+    return activeWarp;
+  }
+
+  public void setActiveWarp(BattleWarp activeWarp) {
+    this.activeWarp = Objects.requireNonNull(activeWarp, "activeWarp");
+  }
+
+  public TeamSide getActiveWarpStarterSide() {
+    return activeWarpStarterSide;
+  }
+
+  public void setActiveWarpStarterSide(TeamSide activeWarpStarterSide) {
+    this.activeWarpStarterSide = activeWarpStarterSide;
+  }
+
+  public int getActiveWarpTurnCount() {
+    return activeWarpTurnCount;
+  }
+
+  public void resetActiveWarpTurnCount() {
+    activeWarpTurnCount = 0;
+  }
+
+  public void advanceActiveWarpTurnCount() {
+    activeWarpTurnCount++;
+  }
+
+  public int getActiveWarpRoundCount() {
+    return activeWarpRoundCount;
+  }
+
+  public void setActiveWarpRoundCount(int activeWarpRoundCount) {
+    this.activeWarpRoundCount = Math.max(0, activeWarpRoundCount);
+  }
+
+  public void resetActiveWarpRoundCount() {
+    activeWarpRoundCount = 0;
+  }
+
+  public void advanceActiveWarpRoundCount() {
+    activeWarpRoundCount++;
+  }
+
+  public int getRemainingPlacementsThisTurn() {
+    return remainingPlacementsThisTurn;
+  }
+
+  public void setRemainingPlacementsThisTurn(int remainingPlacementsThisTurn) {
+    this.remainingPlacementsThisTurn = Math.max(0, remainingPlacementsThisTurn);
+  }
+
+  public int consumePlacementThisTurn() {
+    if (remainingPlacementsThisTurn > 0) {
+      remainingPlacementsThisTurn--;
+    }
+
+    return remainingPlacementsThisTurn;
   }
 
   public BattleTeam getActiveTeam() {
@@ -105,6 +170,11 @@ public class BattleState {
     redTeam.resetForNewBattle(STARTING_HEALTH, STARTING_SHIELD, redConfiguredDeck);
     blueTeam.resetForNewBattle(STARTING_HEALTH, STARTING_SHIELD, blueConfiguredDeck);
     activeSide = TeamSide.RED;
+    activeWarp = BattleWarp.NONE;
+    activeWarpStarterSide = null;
+    activeWarpTurnCount = 0;
+    activeWarpRoundCount = 0;
+    remainingPlacementsThisTurn = 1;
   }
 
   private ArrayList<BattleBlock> getConfiguredDeckList(TeamSide side) {

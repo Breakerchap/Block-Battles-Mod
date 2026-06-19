@@ -1,6 +1,5 @@
 package com.remy.blockbattles.game.logic;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,47 +37,43 @@ class GameLogicPlacementRequirementTest {
   }
 
   @Test
-  void requirementRejectsWrongSupportBlock() {
+  void requirementChecksAreIgnoredForWrongSupportBlock() {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.PINK_PETALS),
         List.of(CreateBlocks.SAND));
     GameLogic gameLogic = createRunningGameLogic(battleState);
     battleState.getRedTeam().getHand().add(CreateBlocks.PINK_PETALS);
 
-    assertFalse(gameLogic.canPlaceBattleBlock(
+    assertTrue(gameLogic.canPlaceBattleBlock(
         CreateBlocks.PINK_PETALS.id.getId(),
         TeamSide.RED,
         CreateBlocks.SAND.id.getId(),
         null));
-    assertEquals(
-        "Requirements: " + CreateBlocks.PINK_PETALS.requirementDescription,
-        gameLogic.getBattleBlockPlacementFailure(
-            CreateBlocks.PINK_PETALS.id.getId(),
-            TeamSide.RED,
-            CreateBlocks.SAND.id.getId(),
-            null));
+    assertNull(gameLogic.getBattleBlockPlacementFailure(
+        CreateBlocks.PINK_PETALS.id.getId(),
+        TeamSide.RED,
+        CreateBlocks.SAND.id.getId(),
+        null));
   }
 
   @Test
-  void requirementRejectsEnemyOwnedBattleSupport() {
+  void requirementChecksAreIgnoredForEnemyOwnedSupport() {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.CANDLE),
         List.of(CreateBlocks.SAND));
     GameLogic gameLogic = createRunningGameLogic(battleState);
     battleState.getRedTeam().getHand().add(CreateBlocks.CANDLE);
 
-    assertFalse(gameLogic.canPlaceBattleBlock(
+    assertTrue(gameLogic.canPlaceBattleBlock(
         CreateBlocks.CANDLE.id.getId(),
         TeamSide.RED,
         CreateBlocks.CAKE.id.getId(),
         TeamSide.BLUE));
-    assertEquals(
-        "You can only place that on your own team's battle blocks.",
-        gameLogic.getBattleBlockPlacementFailure(
-            CreateBlocks.CANDLE.id.getId(),
-            TeamSide.RED,
-            CreateBlocks.CAKE.id.getId(),
-            TeamSide.BLUE));
+    assertNull(gameLogic.getBattleBlockPlacementFailure(
+        CreateBlocks.CANDLE.id.getId(),
+        TeamSide.RED,
+        CreateBlocks.CAKE.id.getId(),
+        TeamSide.BLUE));
   }
 
   @Test
