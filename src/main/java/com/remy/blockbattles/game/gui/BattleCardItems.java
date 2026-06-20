@@ -33,11 +33,15 @@ public final class BattleCardItems {
   }
 
   public static ItemStack createDeckDisplayItem(BattleBlock battleBlock) {
-    return createBlockItem(battleBlock, false);
+    return createBlockItem(battleBlock, false, true);
   }
 
   public static ItemStack createHandItem(BattleBlock battleBlock) {
-    return createBlockItem(battleBlock, true);
+    return createBlockItem(battleBlock, true, false);
+  }
+
+  public static ItemStack createChoiceDisplayItem(BattleBlock battleBlock) {
+    return createBlockItem(battleBlock, false, false);
   }
 
   public static ItemStack createNamedItem(Item item, Component name, List<Component> lore) {
@@ -88,7 +92,7 @@ public final class BattleCardItems {
     }
   }
 
-  private static ItemStack createBlockItem(BattleBlock battleBlock, boolean asHandCard) {
+  private static ItemStack createBlockItem(BattleBlock battleBlock, boolean asHandCard, boolean showDeckRestriction) {
     ArrayList<Component> lore = new ArrayList<>();
 
     if (asHandCard) {
@@ -115,7 +119,7 @@ public final class BattleCardItems {
         battleBlock.defenceDamagePerTurn,
         ChatFormatting.GOLD));
 
-    if (!isSelectableForDeck(battleBlock)) {
+    if (showDeckRestriction && !isSelectableForDeck(battleBlock)) {
       lore.add(Component.literal(getDeckRestrictionMessage(battleBlock)).withStyle(ChatFormatting.DARK_RED));
     }
 

@@ -202,6 +202,195 @@ class GameLogicAbilityTest {
   }
 
   @Test
+  void lecternAddsEightDamagePerRemainingCardInHand() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.LECTERN, CreateBlocks.SAND, CreateBlocks.RED_SANDSTONE),
+        List.of(CreateBlocks.MOSS_BLOCK));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam blueTeam = battleState.getBlueTeam();
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.getHand().add(CreateBlocks.LECTERN);
+    redTeam.getHand().add(CreateBlocks.SAND);
+    redTeam.getHand().add(CreateBlocks.RED_SANDSTONE);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.LECTERN, TeamSide.RED));
+    assertEquals(178, blueTeam.getHealth());
+  }
+
+  @Test
+  void bookshelfDrawsEntireDeckNextTurn() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.BOOKSHELF, CreateBlocks.SAND, CreateBlocks.SANDSTONE, CreateBlocks.RED_SANDSTONE),
+        List.of(CreateBlocks.MOSS_BLOCK));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.getHand().add(CreateBlocks.BOOKSHELF);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.BOOKSHELF, TeamSide.RED));
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.MOSS_BLOCK, TeamSide.BLUE));
+    assertEquals(redTeam.getStartingDeck().size(), redTeam.getHandSize());
+  }
+
+  @Test
+  void deepslateGoldOreStealsHalfOfOpponentsShield() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.DEEPSLATE_GOLD_ORE),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam blueTeam = battleState.getBlueTeam();
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    blueTeam.gainShield(9);
+    redTeam.getHand().add(CreateBlocks.DEEPSLATE_GOLD_ORE);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.DEEPSLATE_GOLD_ORE, TeamSide.RED));
+    assertEquals(4, redTeam.getShield());
+    assertEquals(5, blueTeam.getShield());
+  }
+
+  @Test
+  void stoneBricksSetYourShieldToSeven() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.STONE_BRICKS),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.gainShield(20);
+    redTeam.getHand().add(CreateBlocks.STONE_BRICKS);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.STONE_BRICKS, TeamSide.RED));
+    assertEquals(7, redTeam.getShield());
+  }
+
+  @Test
+  void copperTorchBlocksAllIncomingDamageOnNextOpponentTurn() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.COPPER_TORCH),
+        List.of(CreateBlocks.HORN_CORAL_BLOCK));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.getHand().add(CreateBlocks.COPPER_TORCH);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.COPPER_TORCH, TeamSide.RED));
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.HORN_CORAL_BLOCK, TeamSide.BLUE));
+    assertEquals(200, redTeam.getHealth());
+  }
+
+  @Test
+  void nightWarpPreventsHealing() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.CORNFLOWER),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    battleState.setActiveWarp(BattleWarp.NIGHT);
+    redTeam.takeHealthDamage(80);
+    redTeam.getHand().add(CreateBlocks.CORNFLOWER);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.CORNFLOWER, TeamSide.RED));
+    assertEquals(120, redTeam.getHealth());
+  }
+
+  @Test
+  void nightWarpDoublesMobHeadEffects() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.WITHER_SKELETON_SKULL),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam blueTeam = battleState.getBlueTeam();
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    battleState.setActiveWarp(BattleWarp.NIGHT);
+    blueTeam.gainShield(7);
+    redTeam.getHand().add(CreateBlocks.WITHER_SKELETON_SKULL);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.WITHER_SKELETON_SKULL, TeamSide.RED));
+    assertEquals(155, blueTeam.getHealth());
+  }
+
+  @Test
+  void redBedResetsNightWarpToNone() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.RED_BED),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+
+    battleState.setActiveWarp(BattleWarp.NIGHT);
+    battleState.getRedTeam().getHand().add(CreateBlocks.RED_BED);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.RED_BED, TeamSide.RED));
+    assertEquals(BattleWarp.NONE, battleState.getActiveWarp());
+  }
+
+  @Test
+  void playerHeadGrantsAnImmediateExtraTurn() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.PLAYER_HEAD),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.getHand().add(CreateBlocks.PLAYER_HEAD);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.PLAYER_HEAD, TeamSide.RED));
+    assertEquals(TeamSide.RED, battleState.getActiveSide());
+  }
+
+  @Test
+  void vaultChoiceRemovesChosenCardAndAppliesReward() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.VAULT, CreateBlocks.SANDSTONE),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.takeHealthDamage(20);
+
+    assertTrue(gameLogic.resolveVaultChoice(TeamSide.RED, CreateBlocks.SANDSTONE));
+    assertEquals(188, redTeam.getHealth());
+    assertEquals(8, redTeam.getShield());
+    assertEquals(List.of(CreateBlocks.VAULT), redTeam.getStartingDeck());
+  }
+
+  @Test
+  void chosenBlocksCanBeQueuedForNextHand() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.SAND),
+        List.of(CreateBlocks.SAND));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+
+    gameLogic.queueChosenBlocksForNextHand(
+        TeamSide.RED,
+        List.of(CreateBlocks.DRAGON_EGG, CreateBlocks.CRYING_OBSIDIAN));
+
+    assertEquals(
+        List.of(CreateBlocks.DRAGON_EGG, CreateBlocks.CRYING_OBSIDIAN),
+        battleState.getRedTeam().consumeQueuedNextHandCards());
+  }
+
+  @Test
+  void oakPlanksAddFourMoreToYourNextHand() {
+    BattleState battleState = new BattleState(
+        List.of(CreateBlocks.OAK_PLANKS, CreateBlocks.SAND, CreateBlocks.RED_SANDSTONE),
+        List.of(CreateBlocks.MOSS_BLOCK));
+    GameLogic gameLogic = createRunningGameLogic(battleState);
+    BattleTeam redTeam = battleState.getRedTeam();
+
+    redTeam.getHand().add(CreateBlocks.OAK_PLANKS);
+
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.OAK_PLANKS, TeamSide.RED));
+    assertTrue(gameLogic.onPlaceBattleBlock(CreateBlocks.MOSS_BLOCK, TeamSide.BLUE));
+    assertEquals(
+        5,
+        redTeam.getHand().stream().filter(card -> card == CreateBlocks.OAK_PLANKS).count());
+  }
+
+  @Test
   void deadBushPerTurnDamageScalesWithOwnersMissingHealth() {
     BattleState battleState = new BattleState(
         List.of(CreateBlocks.DEAD_BUSH),

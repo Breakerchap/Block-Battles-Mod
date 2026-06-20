@@ -87,7 +87,8 @@ public class PlaceBlockMixin {
         blockIdString,
         serverLevel,
         pos,
-        BattlePlayerTeams.getTeamSide(context.getPlayer()).orElse(null));
+        BattlePlayerTeams.getTeamSide(context.getPlayer()).orElse(null),
+        context.getPlayer() instanceof net.minecraft.server.level.ServerPlayer serverPlayer ? serverPlayer : null);
 
     BlockBattlesMod.GAME_LOGIC.onAnyBlockPlaced(serverLevel, pos);
 

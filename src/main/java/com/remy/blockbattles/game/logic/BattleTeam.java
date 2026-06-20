@@ -19,24 +19,32 @@ public class BattleTeam {
   private int queuedTurnHealingBonus;
   private int queuedTurnShieldBonus;
   private int queuedTurnDrawModifier;
+  private int queuedTurnExtraPlacements;
   private int queuedTurnDamage;
   private int queuedTurnHealing;
   private int queuedTurnShieldGain;
   private boolean ignoreNextIncomingDamage;
   private boolean queuedHealingAlsoIncreasesMaxHealth;
+  private boolean queuedDrawEntireDeck;
   private int activeTurnDamageBonus;
   private int activeTurnHealingBonus;
   private int activeTurnShieldBonus;
   private int activeTurnDrawModifier;
+  private int activeTurnExtraPlacements;
   private int activeTurnDamage;
   private int activeTurnHealing;
   private int activeTurnShieldGain;
   private boolean activeHealingAlsoIncreasesMaxHealth;
+  private boolean activeDrawEntireDeck;
+  private boolean extraTurnAfterThisTurn;
+  private boolean skipNextTurn;
+  private int shieldDisabledTurns;
   private int lastDamageDealt;
   private int lastDamageTakenFromOpponent;
   private final ArrayList<BattleBlock> hand = new ArrayList<>();
   private final ArrayList<BattleBlock> startingDeck = new ArrayList<>();
   private final ArrayList<BattleBlock> drawPile = new ArrayList<>();
+  private final ArrayList<BattleBlock> queuedNextHandCards = new ArrayList<>();
   private final ArrayList<PlacedBattleBlock> placedBlocks = new ArrayList<>();
 
   public BattleTeam(TeamSide side) {
@@ -65,7 +73,7 @@ public class BattleTeam {
   }
 
   public int getShield() {
-    return shield;
+    return shieldDisabledTurns > 0 ? 0 : shield;
   }
 
   public List<BattleBlock> getStartingDeck() {
@@ -104,6 +112,10 @@ public class BattleTeam {
     maxHealth = startingHealth;
     health = maxHealth;
     shield = startingShield;
+    extraTurnAfterThisTurn = false;
+    skipNextTurn = false;
+    shieldDisabledTurns = 0;
+    queuedNextHandCards.clear();
     lastDamageDealt = 0;
     lastDamageTakenFromOpponent = 0;
     clearQueuedTurnEffects();
@@ -190,6 +202,32 @@ public class BattleTeam {
     return removedCard;
   }
 
+  public BattleBlock removeRandomCardFromDeckExcluding(Random random, BattleBlock excludedBlock) {
+    Objects.requireNonNull(random, "random");
+    Objects.requireNonNull(excludedBlock, "excludedBlock");
+
+    ArrayList<BattleBlock> removableCards = new ArrayList<>();
+
+    for (BattleBlock card : startingDeck) {
+      if (card != excludedBlock) {
+        removableCards.add(card);
+      }
+    }
+
+    if (removableCards.isEmpty()) {
+      return null;
+    }
+
+    BattleBlock removedCard = removableCards.get(random.nextInt(removableCards.size()));
+    startingDeck.remove(removedCard);
+
+    if (!drawPile.remove(removedCard)) {
+      hand.remove(removedCard);
+    }
+
+    return removedCard;
+  }
+
   public void queueTurnDamageBonus(int amount) {
     queuedTurnDamageBonus += amount;
   }
@@ -204,6 +242,10 @@ public class BattleTeam {
 
   public void queueTurnDrawModifier(int amount) {
     queuedTurnDrawModifier += amount;
+  }
+
+  public void queueTurnExtraPlacements(int amount) {
+    queuedTurnExtraPlacements += amount;
   }
 
   public void queueTurnDamage(int amount) {
@@ -226,6 +268,50 @@ public class BattleTeam {
     queuedHealingAlsoIncreasesMaxHealth = true;
   }
 
+  public void queueDrawEntireDeckNextTurn() {
+    queuedDrawEntireDeck = true;
+  }
+
+  public void queueNextHandCard(BattleBlock battleBlock) {
+    queuedNextHandCards.add(Objects.requireNonNull(battleBlock, "battleBlock"));
+  }
+
+  public List<BattleBlock> consumeQueuedNextHandCards() {
+    ArrayList<BattleBlock> cards = new ArrayList<>(queuedNextHandCards);
+    queuedNextHandCards.clear();
+    return cards;
+  }
+
+  public void queueExtraTurn() {
+    extraTurnAfterThisTurn = true;
+  }
+
+  public boolean consumeExtraTurn() {
+    boolean shouldTakeExtraTurn = extraTurnAfterThisTurn;
+    extraTurnAfterThisTurn = false;
+    return shouldTakeExtraTurn;
+  }
+
+  public void queueSkipNextTurn() {
+    skipNextTurn = true;
+  }
+
+  public boolean consumeSkipNextTurn() {
+    boolean shouldSkip = skipNextTurn;
+    skipNextTurn = false;
+    return shouldSkip;
+  }
+
+  public void disableShieldForTurns(int turns) {
+    shieldDisabledTurns = Math.max(shieldDisabledTurns, Math.max(0, turns));
+  }
+
+  public void advanceTurnStatuses() {
+    if (shieldDisabledTurns > 0) {
+      shieldDisabledTurns--;
+    }
+  }
+
   public boolean consumeIgnoreNextIncomingDamage() {
     boolean shouldIgnore = ignoreNextIncomingDamage;
     ignoreNextIncomingDamage = false;
@@ -237,10 +323,12 @@ public class BattleTeam {
     activeTurnHealingBonus += queuedTurnHealingBonus;
     activeTurnShieldBonus += queuedTurnShieldBonus;
     activeTurnDrawModifier += queuedTurnDrawModifier;
+    activeTurnExtraPlacements += queuedTurnExtraPlacements;
     activeTurnDamage += queuedTurnDamage;
     activeTurnHealing += queuedTurnHealing;
     activeTurnShieldGain += queuedTurnShieldGain;
     activeHealingAlsoIncreasesMaxHealth |= queuedHealingAlsoIncreasesMaxHealth;
+    activeDrawEntireDeck |= queuedDrawEntireDeck;
     clearQueuedTurnEffects();
   }
 
@@ -260,8 +348,18 @@ public class BattleTeam {
     return activeTurnDrawModifier;
   }
 
+  public int getActiveTurnExtraPlacements() {
+    return activeTurnExtraPlacements;
+  }
+
   public boolean isActiveHealingAlsoIncreasesMaxHealth() {
     return activeHealingAlsoIncreasesMaxHealth;
+  }
+
+  public boolean consumeActiveDrawEntireDeck() {
+    boolean shouldDrawEntireDeck = activeDrawEntireDeck;
+    activeDrawEntireDeck = false;
+    return shouldDrawEntireDeck;
   }
 
   public int getLastDamageDealt() {
@@ -305,10 +403,12 @@ public class BattleTeam {
     activeTurnHealingBonus = 0;
     activeTurnShieldBonus = 0;
     activeTurnDrawModifier = 0;
+    activeTurnExtraPlacements = 0;
     activeTurnDamage = 0;
     activeTurnHealing = 0;
     activeTurnShieldGain = 0;
     activeHealingAlsoIncreasesMaxHealth = false;
+    activeDrawEntireDeck = false;
   }
 
   public void clearQueuedTurnEffects() {
@@ -316,11 +416,13 @@ public class BattleTeam {
     queuedTurnHealingBonus = 0;
     queuedTurnShieldBonus = 0;
     queuedTurnDrawModifier = 0;
+    queuedTurnExtraPlacements = 0;
     queuedTurnDamage = 0;
     queuedTurnHealing = 0;
     queuedTurnShieldGain = 0;
     ignoreNextIncomingDamage = false;
     queuedHealingAlsoIncreasesMaxHealth = false;
+    queuedDrawEntireDeck = false;
   }
 
   public void heal(int amount) {
@@ -343,7 +445,7 @@ public class BattleTeam {
   }
 
   public int takeHealthDamage(int amount) {
-    int actualDamage = Math.max(0, amount - shield);
+    int actualDamage = Math.max(0, amount - getShield());
     health -= actualDamage;
     return actualDamage;
   }

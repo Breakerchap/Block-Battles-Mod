@@ -13,17 +13,22 @@ import com.remy.blockbattles.game.blocks.BattleBlockIDs;
 import com.remy.blockbattles.game.blocks.Classification;
 import com.remy.blockbattles.game.blocks.CreateBlocks;
 import com.remy.blockbattles.game.blocks.abilities.Abilities;
+import com.remy.blockbattles.game.gui.BattleAbilityChoiceMenu;
 import com.remy.blockbattles.game.gui.BattleCardItems;
+import com.remy.blockbattles.game.gui.BattleScoreboards;
+import com.remy.blockbattles.game.gui.BattleStoredBlocksMenu;
 import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
@@ -124,7 +129,7 @@ public class GameLogic {
 
   public boolean onPlaceBattleBlock(String blockId) {
     return CreateBlocks.findByMinecraftId(blockId)
-        .map(battleBlock -> placeBattleBlock(battleBlock, battleState.getActiveSide(), null, null))
+        .map(battleBlock -> placeBattleBlock(battleBlock, battleState.getActiveSide(), null, null, null))
         .orElse(false);
   }
 
@@ -133,23 +138,27 @@ public class GameLogic {
   }
 
   public boolean onPlaceBattleBlock(String blockId, Level level, BlockPos pos, TeamSide actingSide) {
+    return onPlaceBattleBlock(blockId, level, pos, actingSide, null);
+  }
+
+  public boolean onPlaceBattleBlock(String blockId, Level level, BlockPos pos, TeamSide actingSide, ServerPlayer placingPlayer) {
     return CreateBlocks.findByMinecraftId(blockId)
         .map(battleBlock -> {
           if (level instanceof ServerLevel serverLevel) {
-            return placeBattleBlock(battleBlock, actingSide, serverLevel, pos);
+            return placeBattleBlock(battleBlock, actingSide, serverLevel, pos, placingPlayer);
           }
 
-          return placeBattleBlock(battleBlock, actingSide, null, null);
+          return placeBattleBlock(battleBlock, actingSide, null, null, placingPlayer);
         })
         .orElse(false);
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock) {
-    return placeBattleBlock(battleBlock, battleState.getActiveSide(), null, null);
+    return placeBattleBlock(battleBlock, battleState.getActiveSide(), null, null, null);
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock, TeamSide actingSide) {
-    return placeBattleBlock(battleBlock, actingSide, null, null);
+    return placeBattleBlock(battleBlock, actingSide, null, null, null);
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos) {
@@ -157,7 +166,7 @@ public class GameLogic {
   }
 
   public boolean onPlaceBattleBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos, TeamSide actingSide) {
-    return placeBattleBlock(battleBlock, actingSide, level, pos);
+    return placeBattleBlock(battleBlock, actingSide, level, pos, null);
   }
 
   public BattleState getBattleState() {
@@ -172,14 +181,15 @@ public class GameLogic {
     return battleState.getWaitingTeam();
   }
 
-  private BattleBlock applyOnPlaceAbility(
+  private PlacedBlockResolution applyOnPlaceAbility(
       BattleBlock battleBlock,
       BattleTeam currentTeam,
       BattleTeam enemyTeam,
       ServerLevel level,
-      BlockPos pos) {
+      BlockPos pos,
+      ServerPlayer placingPlayer) {
     if (level != null && pos != null && isActivationSuppressed(battleBlock, level, pos)) {
-      return battleBlock;
+      return new PlacedBlockResolution(battleBlock, battleBlock, List.of());
     }
 
     int effectMultiplier = getBlockEffectMultiplier(level, pos, battleBlock);
@@ -188,7 +198,7 @@ public class GameLogic {
       case TNT -> {
         if (!areExplosionsDisabled() && level != null && pos != null) {
           breakBlocksAround(level, pos);
-          return null;
+          return new PlacedBlockResolution(null, battleBlock, List.of());
         }
       }
       case RED_TULIP -> {
@@ -197,16 +207,25 @@ public class GameLogic {
         }
       }
       case CORNFLOWER -> {
-        queueHealingSource(currentTeam, (currentTeam.getHealth() / 4) * effectMultiplier, true);
+        queueHealingSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, (currentTeam.getHealth() / 4) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
+            true);
       }
       case PINK_PETALS -> currentTeam.queueHealingAlsoIncreasesMaxHealth();
       case CARVED_PUMPKIN -> {
         if (level != null && pos != null) {
-          queueHealingSource(currentTeam, countNearbyBlocks(level, pos, 1) * 4 * effectMultiplier, true);
+          queueHealingSource(
+              currentTeam,
+              scaleAbilityAmount(level, pos, countNearbyBlocks(level, pos, 1) * 4 * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
+              true);
         }
       }
       case CHERRY_LEAVES -> {
-        queueHealingSource(currentTeam, (currentTeam.getMaxHealth() / 10) * effectMultiplier, true);
+        queueHealingSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, (currentTeam.getMaxHealth() / 10) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
+            true);
       }
       case MOSS_BLOCK -> {
         if (level != null && pos != null) {
@@ -214,45 +233,68 @@ public class GameLogic {
         }
       }
       case NETHERRACK -> {
-        queueDamageSource(currentTeam, currentTeam.getLastDamageDealt() * effectMultiplier, true);
+        queueDamageSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, currentTeam.getLastDamageDealt() * effectMultiplier, BattleBlockIDs.RED_CARPET),
+            true);
       }
       case VAULT -> {
-        if (currentTeam.removeOneCardFromDeck(CreateBlocks.VAULT)) {
-          queueShieldSource(currentTeam, 8 * effectMultiplier, true);
-          queueHealingSource(currentTeam, 8 * effectMultiplier, true);
+        if (placingPlayer != null) {
+          openVaultChoice(placingPlayer, currentTeam);
+        } else if (currentTeam.removeRandomCardFromDeck(random) != null) {
+          applyImmediateShieldGain(currentTeam, scaleAbilityAmount(level, pos, 8 * effectMultiplier, BattleBlockIDs.BLUE_CARPET));
+          applyImmediateHealing(currentTeam, enemyTeam, scaleAbilityAmount(level, pos, 8 * effectMultiplier, BattleBlockIDs.GREEN_CARPET));
         }
       }
       case SCULK -> enemyTeam.increaseMaxHealth(-2 * effectMultiplier);
       case END_CRYSTAL -> {
         if (!areExplosionsDisabled() && level != null && pos != null) {
           breakBlocksInCube(level, pos, 2, true);
-          return null;
+          return new PlacedBlockResolution(null, battleBlock, List.of());
         }
       }
       case FURNACE -> {
         if (level != null && pos != null) {
-          queueShieldSource(currentTeam, countNearbyBlocks(level, pos, 1) * effectMultiplier, true);
+          queueShieldSource(
+              currentTeam,
+              scaleAbilityAmount(level, pos, countNearbyBlocks(level, pos, 1) * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
+              true);
         }
       }
       case LAPIS_BLOCK -> {
-        queueHealingSource(currentTeam, ((currentTeam.getHealth() + 1) / 2) * effectMultiplier, true);
-        currentTeam.replaceOneCardInDeck(CreateBlocks.LAPIS_BLOCK, CreateBlocks.DIRT);
-
-        if (level != null && pos != null) {
-          level.setBlock(pos, Blocks.DIRT.defaultBlockState(), 3);
-        }
-
-        return CreateBlocks.DIRT;
+        queueHealingSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, ((currentTeam.getHealth() + 1) / 2) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
+            true);
+        replaceOneCardInDeckAndOnBoard(currentTeam, CreateBlocks.LAPIS_BLOCK, level, pos);
+        return new PlacedBlockResolution(CreateBlocks.DIRT, battleBlock, List.of());
       }
       case DEEPSLATE_BRICKS -> {
-        queueDamageSource(currentTeam, currentTeam.getShield() * 2 * effectMultiplier, true);
+        queueDamageSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, currentTeam.getShield() * 2 * effectMultiplier, BattleBlockIDs.RED_CARPET),
+            true);
       }
       case REINFORCED_DEEPSLATE -> {
-        queueShieldSource(currentTeam, Math.min(currentTeam.getShield(), 10) * effectMultiplier, true);
+        queueShieldSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, Math.min(currentTeam.getShield(), 10) * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
+            true);
+      }
+      case DEEPSLATE_GOLD_ORE -> {
+        int stolenShield = enemyTeam.getShield() / 2;
+        enemyTeam.loseShield(stolenShield);
+        queueShieldSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, stolenShield * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
+            true);
       }
       case WITHER_SKELETON_SKULL -> {
         if (enemyTeam.getShield() > 6) {
-          queueDamageSource(currentTeam, 8 * effectMultiplier, true);
+          queueDamageSource(
+              currentTeam,
+              scaleAbilityAmount(level, pos, 8 * effectMultiplier, BattleBlockIDs.RED_CARPET),
+              true);
         }
       }
       case WITHER_ROSE -> {
@@ -260,38 +302,51 @@ public class GameLogic {
           int replacedGrassBlocks = replaceNearbyGrassWithSoulSand(level, pos, 1);
 
           if (replacedGrassBlocks > 0) {
-            queueDamageSource(currentTeam, replacedGrassBlocks * 3 * effectMultiplier, true);
-            queueHealingSource(currentTeam, replacedGrassBlocks * effectMultiplier, true);
+            queueDamageSource(
+                currentTeam,
+                scaleAbilityAmount(level, pos, replacedGrassBlocks * 3 * effectMultiplier, BattleBlockIDs.RED_CARPET),
+                true);
+            queueHealingSource(
+                currentTeam,
+                scaleAbilityAmount(level, pos, replacedGrassBlocks * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
+                true);
           }
         }
       }
       case LECTERN -> {
-        queueDamageSource(currentTeam, currentTeam.getHandSize() * effectMultiplier, true);
+        queueDamageSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, currentTeam.getHandSize() * 8 * effectMultiplier, BattleBlockIDs.RED_CARPET),
+            true);
       }
       case SMITHING_TABLE -> {
-        queueDamageSource(currentTeam, countBlocksOnBoard(Classification.MAN_MADE, battleBlock) * effectMultiplier, true);
+        queueDamageSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, countBlocksOnBoard(Classification.MAN_MADE, battleBlock) * effectMultiplier, BattleBlockIDs.RED_CARPET),
+            true);
       }
       case SOUL_TORCH -> currentTeam.queueTurnHealingBonus(4 * effectMultiplier);
       case REDSTONE_TORCH -> currentTeam.queueTurnDamageBonus(5 * effectMultiplier);
       case TORCH -> currentTeam.queueTurnShieldBonus(2 * effectMultiplier);
       case COPPER_TORCH -> currentTeam.queueIgnoreNextIncomingDamage();
       case CRIMSON_HYPHAE -> {
-        queueDamageSource(currentTeam, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, true);
+        queueDamageSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, BattleBlockIDs.RED_CARPET),
+            true);
       }
       case WARPED_HYPHAE -> {
-        queueHealingSource(currentTeam, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, true);
+        queueHealingSource(
+            currentTeam,
+            scaleAbilityAmount(level, pos, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
+            true);
       }
       case RAW_IRON_BLOCK -> currentTeam.queueTurnDamage(30 * effectMultiplier);
       case RAW_GOLD_BLOCK -> currentTeam.queueTurnShieldGain(6 * effectMultiplier);
       case RAW_COPPER_BLOCK -> currentTeam.queueTurnHealing(26 * effectMultiplier);
       case NETHERITE_BLOCK -> {
-        currentTeam.replaceOneCardInDeck(CreateBlocks.NETHERITE_BLOCK, CreateBlocks.DIRT);
-
-        if (level != null && pos != null) {
-          level.setBlock(pos, Blocks.DIRT.defaultBlockState(), 3);
-        }
-
-        return CreateBlocks.DIRT;
+        replaceOneCardInDeckAndOnBoard(currentTeam, CreateBlocks.NETHERITE_BLOCK, level, pos);
+        return new PlacedBlockResolution(CreateBlocks.DIRT, battleBlock, List.of());
       }
       case CHEST -> {
         if (level != null && pos != null) {
@@ -300,7 +355,10 @@ public class GameLogic {
       }
       case TRAPPED_CHEST -> {
         if (level != null && pos != null) {
-          activateTrappedChestAbility(currentTeam, level, pos);
+          return new PlacedBlockResolution(
+              battleBlock,
+              battleBlock,
+              collectTrappedChestStoredBlocks(currentTeam, level, pos));
         }
       }
       case ENCHANTING_TABLE -> {
@@ -315,27 +373,135 @@ public class GameLogic {
       }
       case POINTED_DRIPSTONE -> {
         if (level != null && pos != null && Abilities.isPointedDripstoneUpsideDown(level, pos)) {
-          queueDamageSource(currentTeam, 8 * effectMultiplier, true);
+          queueDamageSource(
+              currentTeam,
+              scaleAbilityAmount(level, pos, 8 * effectMultiplier, BattleBlockIDs.RED_CARPET),
+              true);
         }
       }
       case SOUL_SAND -> enemyTeam.queueTurnDrawModifier(-1 * effectMultiplier);
+      case BOOKSHELF -> currentTeam.queueDrawEntireDeckNextTurn();
+      case CHISELED_BOOKSHELF -> {
+        if (placingPlayer != null) {
+          openChiseledBookshelfChoice(placingPlayer, currentTeam, 2 * effectMultiplier);
+        } else {
+          queueRandomBattleCardsForNextHand(currentTeam, 2 * effectMultiplier);
+        }
+      }
+      case STONE_BRICKS -> currentTeam.setShield(0);
+      case CRACKED_STONE_BRICKS -> enemyTeam.setShield(0);
+      case COBBLESTONE -> {
+        enemyTeam.setShield(0);
+        enemyTeam.disableShieldForTurns(2);
+      }
+      case POLISHED_BLACKSTONE_BRICKS -> {
+        if (level != null && pos != null) {
+          queueDamageSource(
+              currentTeam,
+              scaleAbilityAmount(level, pos, countAdjacentOccupiedBlocks(level, pos) * 3 * effectMultiplier, BattleBlockIDs.RED_CARPET),
+              true);
+        }
+      }
+      case GLASS -> {
+        BattleBlock copiedBlock = battleState.getLastPlacedBlock();
+
+        if (copiedBlock != null && copiedBlock != battleBlock) {
+          return copyBattleBlockPlacement(copiedBlock, battleBlock, currentTeam, enemyTeam, level, pos);
+        }
+      }
+      case GLASS_PANE -> {
+        BattleBlock copiedBlock = battleState.getLastPlacedBlock(currentTeam.getSide().otherSide());
+
+        if (copiedBlock != null && copiedBlock != battleBlock) {
+          return copyBattleBlockPlacement(copiedBlock, battleBlock, currentTeam, enemyTeam, level, pos);
+        }
+      }
+      case COAL_BLOCK -> {
+      }
+      case GOLD_BLOCK -> {
+        int convertedDefence = currentTeam.getShield() * 3 * effectMultiplier;
+        currentTeam.setShield(0);
+        currentTeam.increaseMaxHealth(convertedDefence);
+        currentTeam.setHealth(currentTeam.getHealth() + convertedDefence);
+        replaceOneCardInDeckAndOnBoard(currentTeam, CreateBlocks.GOLD_BLOCK, level, pos);
+        return new PlacedBlockResolution(CreateBlocks.DIRT, battleBlock, List.of());
+      }
+      case EMERALD_BLOCK -> {
+        currentTeam.queueTurnDrawModifier(2 * effectMultiplier);
+        currentTeam.queueTurnExtraPlacements(effectMultiplier);
+        replaceOneCardInDeckAndOnBoard(currentTeam, CreateBlocks.EMERALD_BLOCK, level, pos);
+        return new PlacedBlockResolution(CreateBlocks.DIRT, battleBlock, List.of());
+      }
+      case REDSTONE_BLOCK -> {
+        for (int i = 0; i < effectMultiplier; i++) {
+          activateAdjacentBlocks(level, pos);
+        }
+      }
+      case DIAMOND_BLOCK -> {
+        replaceOneCardInDeckAndOnBoard(currentTeam, CreateBlocks.DIAMOND_BLOCK, level, pos);
+        return new PlacedBlockResolution(CreateBlocks.DIRT, battleBlock, List.of());
+      }
+      case OBSIDIAN -> {
+      }
+      case CRYING_OBSIDIAN -> {
+        if (level != null && pos != null) {
+          return new PlacedBlockResolution(
+              battleBlock,
+              battleBlock,
+              collectBrokenFriendlyOtherworldlyBlocks(currentTeam, level, pos));
+        }
+      }
+      case BEDROCK -> currentTeam.queueSkipNextTurn();
       case RED_BED -> {
         if (doBedsExplodeOnPlacement()) {
           if (level != null && pos != null) {
             breakBlocksAround(level, pos);
           }
 
-          return null;
+          return new PlacedBlockResolution(null, battleBlock, List.of());
+        }
+
+        if (isWarpActive(BattleWarp.NIGHT)) {
+          battleState.setActiveWarp(BattleWarp.NONE);
+          battleState.setActiveWarpStarterSide(null);
+          battleState.resetActiveWarpTurnCount();
+          battleState.resetActiveWarpRoundCount();
+          battleState.suppressNightWarpOnce();
+        }
+
+        for (int i = 0; i < effectMultiplier; i++) {
+          queuePerTurnEffects(currentTeam, enemyTeam);
+        }
+      }
+      case PLAYER_HEAD -> currentTeam.queueExtraTurn();
+      case CREEPER_HEAD -> {
+        if (level != null && pos != null) {
+          breakBattleBlockAt(level, pos.below());
+        }
+      }
+      case OAK_PLANKS -> {
+        for (int i = 0; i < 4 * effectMultiplier; i++) {
+          currentTeam.queueNextHandCard(CreateBlocks.OAK_PLANKS);
+        }
+      }
+      case PALE_MOSS_BLOCK -> {
+        if (level != null && pos != null) {
+          placePaleMossCarpets(currentTeam, level, pos);
         }
       }
       default -> {
       }
     }
 
-    return battleBlock;
+    return new PlacedBlockResolution(battleBlock, battleBlock, List.of());
   }
 
-  private boolean placeBattleBlock(BattleBlock battleBlock, TeamSide actingSide, ServerLevel level, BlockPos pos) {
+  private boolean placeBattleBlock(
+      BattleBlock battleBlock,
+      TeamSide actingSide,
+      ServerLevel level,
+      BlockPos pos,
+      ServerPlayer placingPlayer) {
     if (!battleState.isGameRunning()) {
       return false;
     }
@@ -352,14 +518,20 @@ public class GameLogic {
       return false;
     }
 
-    BattleBlock placedBlock = applyOnPlaceAbility(battleBlock, currentTeam, enemyTeam, level, pos);
+    PlacedBlockResolution placementResult = applyOnPlaceAbility(
+        battleBlock,
+        currentTeam,
+        enemyTeam,
+        level,
+        pos,
+        placingPlayer);
 
-    queueImmediateBlockEffects(battleBlock, currentTeam, level, pos);
+    queueImmediateBlockEffects(placementResult.effectBlock(), currentTeam, level, pos);
 
-    if (level != null && pos != null && placedBlock != null && isWarpActive(BattleWarp.REDSTONE)) {
+    if (level != null && pos != null && placementResult.boardBlock() != null && isWarpActive(BattleWarp.REDSTONE)) {
       activatePlacedBlockNow(new OwnedPlacedBattleBlock(
           currentTeam,
-          new PlacedBattleBlock(level, pos, placedBlock)));
+          new PlacedBattleBlock(level, pos, placementResult.boardBlock())));
     }
 
     boolean shouldEndTurn = battleState.consumePlacementThisTurn() <= 0;
@@ -368,8 +540,8 @@ public class GameLogic {
       endTurn(resolvedActingSide);
     }
 
-    if (level != null && pos != null && placedBlock != null) {
-      registerPlacedBlock(placedBlock, level, pos, resolvedActingSide);
+    if (level != null && pos != null && placementResult.boardBlock() != null) {
+      registerPlacedBlock(placementResult, level, pos, resolvedActingSide);
     }
 
     return true;
@@ -390,11 +562,15 @@ public class GameLogic {
       return;
     }
 
-    int statBonus = getPodzolStatBonus(currentTeam, level, pos);
+    int statBonus = getPodzolStatBonus(currentTeam, level, pos) - getPaleMossPenalty(level, pos);
     int damage = battleBlock.damage + statBonus;
     int healing = battleBlock.healing + statBonus;
     int shield = battleBlock.defence + statBonus;
     int shieldDamage = battleBlock.defenceDamage + statBonus;
+
+    if (battleBlock.id == BattleBlockIDs.CRACKED_STONE_BRICKS) {
+      shieldDamage = 0;
+    }
 
     if (isWarpActive(BattleWarp.BED_WARS)) {
       if (battleBlock.id == BattleBlockIDs.OAK_PLANKS) {
@@ -433,8 +609,11 @@ public class GameLogic {
     }
   }
 
-  private void registerPlacedBlock(BattleBlock battleBlock, ServerLevel level, BlockPos pos, TeamSide actingSide) {
-    getTeamForTurn(actingSide).addPlacedBlock(new PlacedBattleBlock(level, pos, battleBlock));
+  private void registerPlacedBlock(PlacedBlockResolution placementResult, ServerLevel level, BlockPos pos, TeamSide actingSide) {
+    PlacedBattleBlock placedBlock = new PlacedBattleBlock(level, pos, placementResult.boardBlock());
+    placedBlock.addStoredBlocks(placementResult.storedBlocks());
+    getTeamForTurn(actingSide).addPlacedBlock(placedBlock);
+    battleState.recordLastPlacedBlock(actingSide, placementResult.boardBlock());
   }
 
   private boolean hasPerTurnEffect(BattleBlock battleBlock) {
@@ -564,7 +743,9 @@ public class GameLogic {
               true);
         }
       }
-      case CHERRY_LOG, JUNGLE_LOG, MUSHROOM_STEM -> {
+      case CHERRY_LOG, JUNGLE_LOG, MUSHROOM_STEM, PALE_OAK_LOG -> {
+        placedBlock.advanceOwnerTurnCount();
+
         if (Abilities.growBlockUpwardIfAir(placedBlock.level(), placedBlock.pos())) {
           PlacedBattleBlock grownBlock = new PlacedBattleBlock(
               placedBlock.level(),
@@ -598,6 +779,31 @@ public class GameLogic {
           PlacedBattleBlock lavaBlock = new PlacedBattleBlock(placedBlock.level(), placedBlock.pos(), CreateBlocks.LAVA);
           grownBlocks.add(lavaBlock);
           onAnyBlockPlaced(placedBlock.level(), placedBlock.pos());
+        }
+      }
+      case LAVA, COPPER_BLOCK, CHISELED_COPPER, COPPER_GRATE, COPPER_BULB -> placedBlock.advanceOwnerTurnCount();
+      case CAKE -> {
+        if (placedBlock.advanceOwnerTurnCount() >= 4) {
+          currentTeam.getPlacedBlocks().remove(placedBlock);
+          placedBlock.level().setBlock(placedBlock.pos(), Blocks.AIR.defaultBlockState(), 3);
+          onAnyBlockBroken(placedBlock.level(), placedBlock.pos());
+        }
+      }
+      case CREEPER_HEAD -> {
+        if (placedBlock.advanceOwnerTurnCount() >= 1) {
+          currentTeam.getPlacedBlocks().remove(placedBlock);
+          breakBlocksInCube(placedBlock.level(), placedBlock.pos(), 1, true);
+          queueDamageSource(
+              currentTeam,
+              8 * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock()),
+              true);
+        }
+      }
+      case SKELETON_SKULL, ZOMBIE_HEAD -> {
+        if (isInSunlight(placedBlock.level(), placedBlock.pos())) {
+          currentTeam.getPlacedBlocks().remove(placedBlock);
+          placedBlock.level().setBlock(placedBlock.pos(), Blocks.AIR.defaultBlockState(), 3);
+          onAnyBlockBroken(placedBlock.level(), placedBlock.pos());
         }
       }
       case BREWING_STAND -> applyBrewingStandEffect(currentTeam, enemyTeam, placedBlock);
@@ -703,12 +909,22 @@ public class GameLogic {
     return countNearbyOwnedBlocks(team, level, pos, 1, BattleBlockIDs.PODZOL);
   }
 
+  private int getPaleMossPenalty(ServerLevel level, BlockPos pos) {
+    if (level == null || pos == null) {
+      return 0;
+    }
+
+    return isBlock(level, pos.above(), BattleBlockIDs.PALE_MOSS_CARPET) ? 2 : 0;
+  }
+
   private int getImmediateDamageAmount(PlacedBattleBlock placedBlock, BattleTeam currentTeam) {
     if (isCoralSuppressedByWarp(placedBlock.battleBlock().id)) {
       return 0;
     }
 
-    int damageAmount = placedBlock.battleBlock().damage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    int damageAmount = placedBlock.battleBlock().damage
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
     damageAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
 
     return applyCarpetModifier(
@@ -722,7 +938,9 @@ public class GameLogic {
       return 0;
     }
 
-    int healingAmount = placedBlock.battleBlock().healing + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    int healingAmount = placedBlock.battleBlock().healing
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
     healingAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
 
     return applyCarpetModifier(
@@ -736,7 +954,9 @@ public class GameLogic {
       return 0;
     }
 
-    int shieldAmount = placedBlock.battleBlock().defence + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    int shieldAmount = placedBlock.battleBlock().defence
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
 
     if (isWarpActive(BattleWarp.BED_WARS)) {
       if (placedBlock.battleBlock().id == BattleBlockIDs.OAK_PLANKS) {
@@ -761,7 +981,9 @@ public class GameLogic {
       return 0;
     }
 
-    int shieldDamageAmount = placedBlock.battleBlock().defenceDamage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    int shieldDamageAmount = placedBlock.battleBlock().defenceDamage
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
     return shieldDamageAmount * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
   }
 
@@ -774,7 +996,7 @@ public class GameLogic {
       return;
     }
 
-    applyOnPlaceAbility(placedBlock.battleBlock(), ownerTeam, enemyTeam, placedBlock.level(), placedBlock.pos());
+    applyOnPlaceAbility(placedBlock.battleBlock(), ownerTeam, enemyTeam, placedBlock.level(), placedBlock.pos(), null);
 
     if (placedBlock.battleBlock().damagePerTurn) {
       int damageAmount = getPerTurnDamageAmount(placedBlock, ownerTeam);
@@ -852,8 +1074,9 @@ public class GameLogic {
     }
   }
 
-  private void activateTrappedChestAbility(BattleTeam currentTeam, ServerLevel level, BlockPos pos) {
+  private ArrayList<BattleBlock> collectTrappedChestStoredBlocks(BattleTeam currentTeam, ServerLevel level, BlockPos pos) {
     ArrayList<OwnedPlacedBattleBlock> nearbyBlocks = getTrackedBlocksInCube(level, pos, 1, false);
+    ArrayList<BattleBlock> storedBlocks = new ArrayList<>();
 
     for (OwnedPlacedBattleBlock trackedBlock : nearbyBlocks) {
       if (trackedBlock.placedBlock().battleBlock().classification != Classification.MAN_MADE) {
@@ -861,6 +1084,7 @@ public class GameLogic {
       }
 
       if (trackedBlock.ownerTeam() == currentTeam) {
+        storedBlocks.add(trackedBlock.placedBlock().battleBlock());
         removeTrackedBlockSilently(level, trackedBlock.placedBlock().pos());
         level.setBlock(trackedBlock.placedBlock().pos(), Blocks.AIR.defaultBlockState(), 3);
         onAnyBlockBroken(level, trackedBlock.placedBlock().pos());
@@ -869,6 +1093,8 @@ public class GameLogic {
 
       breakBattleBlockAt(level, trackedBlock.placedBlock().pos());
     }
+
+    return storedBlocks;
   }
 
   private void transferAdjacentBlocksToTeam(BattleTeam targetTeam, ServerLevel level, BlockPos pos) {
@@ -887,6 +1113,228 @@ public class GameLogic {
 
     if (trackedBlock != null) {
       activatePlacedBlockNow(trackedBlock);
+    }
+  }
+
+  private void activateAdjacentBlocks(ServerLevel level, BlockPos pos) {
+    if (level == null || pos == null) {
+      return;
+    }
+
+    for (Direction direction : Direction.values()) {
+      OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos.relative(direction));
+
+      if (trackedBlock != null) {
+        activatePlacedBlockNow(trackedBlock);
+      }
+    }
+  }
+
+  private void openVaultChoice(ServerPlayer player, BattleTeam team) {
+    List<BattleBlock> currentDeck = List.copyOf(team.getStartingDeck());
+
+    if (currentDeck.isEmpty()) {
+      player.sendSystemMessage(Component.literal("There are no cards left in that deck to remove."));
+      return;
+    }
+
+    player.openMenu(new SimpleMenuProvider(
+        (containerId, inventory, menuPlayer) -> new BattleAbilityChoiceMenu(
+            containerId,
+            inventory,
+            currentDeck,
+            1,
+            Component.literal("Vault Choice").withStyle(net.minecraft.ChatFormatting.GOLD),
+            List.of(
+                Component.literal("Choose 1 card to permanently remove from your deck.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                Component.literal("If you choose one, gain 8 defence and 8 healing.").withStyle(net.minecraft.ChatFormatting.GRAY)),
+            (serverPlayer, selectedBlocks) -> {
+              if (!selectedBlocks.isEmpty() && resolveVaultChoice(team.getSide(), selectedBlocks.get(0))) {
+                syncBattleHands(serverPlayer.level().getServer());
+                BattleScoreboards.updateScoreboard(serverPlayer.level().getServer(), battleState);
+                serverPlayer.sendSystemMessage(Component.literal("Vault removed " + selectedBlocks.get(0).displayName + " from the deck."));
+              }
+            }),
+        Component.literal("Vault Choice")));
+  }
+
+  private void openChiseledBookshelfChoice(ServerPlayer player, BattleTeam team, int amount) {
+    player.openMenu(new SimpleMenuProvider(
+        (containerId, inventory, menuPlayer) -> new BattleAbilityChoiceMenu(
+            containerId,
+            inventory,
+            CreateBlocks.ALL,
+            amount,
+            Component.literal("Chiseled Bookshelf").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE),
+            List.of(
+                Component.literal("Choose " + amount + " cards to add to your next hand.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                Component.literal("Any battle block can be chosen here.").withStyle(net.minecraft.ChatFormatting.GRAY)),
+            (serverPlayer, selectedBlocks) -> {
+              queueChosenBlocksForNextHand(team.getSide(), selectedBlocks);
+              serverPlayer.sendSystemMessage(Component.literal(selectedBlocks.size() + " cards were queued for your next hand."));
+            }),
+        Component.literal("Chiseled Bookshelf")));
+  }
+
+  public boolean resolveVaultChoice(TeamSide side, BattleBlock selectedBlock) {
+    BattleTeam team = battleState.getTeam(side);
+
+    if (!team.removeOneCardFromDeck(selectedBlock)) {
+      return false;
+    }
+
+    applyImmediateShieldGain(team, 8);
+    applyImmediateHealing(team, battleState.getOpponentOf(side), 8);
+    return true;
+  }
+
+  public void queueChosenBlocksForNextHand(TeamSide side, List<BattleBlock> chosenBlocks) {
+    BattleTeam team = battleState.getTeam(side);
+
+    for (BattleBlock chosenBlock : chosenBlocks) {
+      team.queueNextHandCard(chosenBlock);
+    }
+  }
+
+  public boolean openStoredBlocksMenu(ServerPlayer player, ServerLevel level, BlockPos pos) {
+    OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
+
+    if (trackedBlock == null || !trackedBlock.placedBlock().hasStoredBlocks()) {
+      return false;
+    }
+
+    BattleBlockIDs blockId = trackedBlock.placedBlock().battleBlock().id;
+
+    if (blockId != BattleBlockIDs.TRAPPED_CHEST && blockId != BattleBlockIDs.CRYING_OBSIDIAN) {
+      return false;
+    }
+
+    Component title = Component.literal(
+        trackedBlock.placedBlock().battleBlock().displayName + " Contents")
+        .withStyle(blockId == BattleBlockIDs.TRAPPED_CHEST
+            ? net.minecraft.ChatFormatting.GOLD
+            : net.minecraft.ChatFormatting.LIGHT_PURPLE);
+
+    player.openMenu(new SimpleMenuProvider(
+        (containerId, inventory, menuPlayer) -> new BattleStoredBlocksMenu(
+            containerId,
+            inventory,
+            title,
+            trackedBlock.placedBlock().getStoredBlocks()),
+        title));
+    return true;
+  }
+
+  private void queueRandomBattleCardsForNextHand(BattleTeam team, int amount) {
+    ArrayList<BattleBlock> selectableBlocks = new ArrayList<>(CreateBlocks.ALL);
+
+    if (selectableBlocks.isEmpty()) {
+      return;
+    }
+
+    for (int i = 0; i < amount; i++) {
+      team.queueNextHandCard(selectableBlocks.get(random.nextInt(selectableBlocks.size())));
+    }
+  }
+
+  private void replaceOneCardInDeckAndOnBoard(BattleTeam team, BattleBlock battleBlock, ServerLevel level, BlockPos pos) {
+    team.replaceOneCardInDeck(battleBlock, CreateBlocks.DIRT);
+
+    if (level != null && pos != null) {
+      level.setBlock(pos, Blocks.DIRT.defaultBlockState(), 3);
+    }
+  }
+
+  private int scaleAbilityAmount(ServerLevel level, BlockPos pos, int amount, BattleBlockIDs carpetId) {
+    if (level == null || pos == null || amount == 0) {
+      return amount;
+    }
+
+    return getBlockId(level, pos.above()).equals(carpetId.getId()) ? amount * 2 : amount;
+  }
+
+  private int countAdjacentOccupiedBlocks(ServerLevel level, BlockPos pos) {
+    int count = 0;
+
+    for (Direction direction : Direction.values()) {
+      if (!level.getBlockState(pos.relative(direction)).isAir()) {
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  private PlacedBlockResolution copyBattleBlockPlacement(
+      BattleBlock copiedBlock,
+      BattleBlock originalBlock,
+      BattleTeam currentTeam,
+      BattleTeam enemyTeam,
+      ServerLevel level,
+      BlockPos pos) {
+    if (level == null || pos == null || copiedBlock == null) {
+      return new PlacedBlockResolution(originalBlock, originalBlock, List.of());
+    }
+
+    setLevelBlockToBattleBlock(level, pos, copiedBlock);
+
+    if (copiedBlock.id == BattleBlockIDs.GLASS || copiedBlock.id == BattleBlockIDs.GLASS_PANE) {
+      return new PlacedBlockResolution(copiedBlock, copiedBlock, List.of());
+    }
+
+    return applyOnPlaceAbility(copiedBlock, currentTeam, enemyTeam, level, pos, null);
+  }
+
+  private void setLevelBlockToBattleBlock(ServerLevel level, BlockPos pos, BattleBlock battleBlock) {
+    if (level == null || pos == null || battleBlock == null) {
+      return;
+    }
+
+    level.setBlock(
+        pos,
+        BuiltInRegistries.BLOCK.get(Identifier.parse(battleBlock.id.getId()))
+            .map(reference -> reference.value().defaultBlockState())
+            .orElse(Blocks.AIR.defaultBlockState()),
+        3);
+  }
+
+  private ArrayList<BattleBlock> collectBrokenFriendlyOtherworldlyBlocks(BattleTeam currentTeam, ServerLevel level, BlockPos pos) {
+    ArrayList<OwnedPlacedBattleBlock> nearbyBlocks = getTrackedBlocksInCube(level, pos, 1, false);
+    ArrayList<OwnedPlacedBattleBlock> copiedFriendlyBlocks = new ArrayList<>();
+    ArrayList<BattleBlock> storedBlocks = new ArrayList<>();
+
+    for (OwnedPlacedBattleBlock trackedBlock : nearbyBlocks) {
+      if (trackedBlock.placedBlock().battleBlock().classification != Classification.OTHERWORLDLY) {
+        continue;
+      }
+
+      if (trackedBlock.ownerTeam() == currentTeam) {
+        copiedFriendlyBlocks.add(trackedBlock);
+        storedBlocks.add(trackedBlock.placedBlock().battleBlock());
+      }
+
+      breakBattleBlockAt(level, trackedBlock.placedBlock().pos());
+    }
+
+    for (OwnedPlacedBattleBlock copiedFriendlyBlock : copiedFriendlyBlocks) {
+      activatePlacedBlockNow(new OwnedPlacedBattleBlock(currentTeam, copiedFriendlyBlock.placedBlock()));
+    }
+
+    return storedBlocks;
+  }
+
+  private void placePaleMossCarpets(BattleTeam currentTeam, ServerLevel level, BlockPos pos) {
+    for (Direction direction : Direction.Plane.HORIZONTAL) {
+      BlockPos supportPos = pos.relative(direction);
+      BlockPos carpetPos = supportPos.above();
+
+      if (level.getBlockState(supportPos).isAir() || !level.getBlockState(carpetPos).isAir()) {
+        continue;
+      }
+
+      level.setBlock(carpetPos, Blocks.PALE_MOSS_CARPET.defaultBlockState(), 3);
+      currentTeam.addPlacedBlock(new PlacedBattleBlock(level, carpetPos, CreateBlocks.PALE_MOSS_CARPET));
+      onAnyBlockPlaced(level, carpetPos);
     }
   }
 
@@ -967,6 +1415,7 @@ public class GameLogic {
     if (enemyTeam.consumeIgnoreNextIncomingDamage()) {
       pendingDamage = 0;
       pendingDirectHealthDamage = 0;
+      pendingShieldDamage = 0;
     }
 
     if (shouldIgnoreDefenceForDamage()) {
@@ -983,11 +1432,14 @@ public class GameLogic {
     applyNetherGoldOreRetaliation(enemyTeam, actualDamageDealt);
     applyCactusReflection(enemyTeam, currentTeam, actualDamageDealt);
     applyEndOfTurnWarpCosts(currentTeam, enemyTeam);
+    currentTeam.advanceTurnStatuses();
 
     currentTeam.clearActiveTurnEffects();
     clearPendingEffects();
     currentTeam.clearHand();
-    battleState.setActiveSide(resolvedActingSide.otherSide());
+    battleState.setActiveSide(currentTeam.consumeExtraTurn()
+        ? resolvedActingSide
+        : resolvedActingSide.otherSide());
     beginActiveTurn();
   }
 
@@ -1110,6 +1562,16 @@ public class GameLogic {
 
   private void beginActiveTurn() {
     BattleTeam activeTeam = battleState.getActiveTeam();
+
+    if (activeTeam.consumeSkipNextTurn()) {
+      activeTeam.clearHand();
+      activeTeam.clearActiveTurnEffects();
+      battleState.setRemainingPlacementsThisTurn(0);
+      battleState.setActiveSide(activeTeam.getSide().otherSide());
+      beginActiveTurn();
+      return;
+    }
+
     activeTeam.activateQueuedTurnEffects();
 
     if (advanceWarpRoundAndMaybeFinishGame(activeTeam.getSide())) {
@@ -1132,7 +1594,7 @@ public class GameLogic {
   private void drawHandForTeam(BattleTeam team, int baseHandSize) {
     team.clearHand();
 
-    if (isWarpActive(BattleWarp.LIBRARY)) {
+    if (isWarpActive(BattleWarp.LIBRARY) || team.consumeActiveDrawEntireDeck()) {
       if (team.getDrawPile().isEmpty()) {
         team.refillDrawPile();
         team.shuffleDrawPile();
@@ -1140,6 +1602,10 @@ public class GameLogic {
 
       while (!team.getDrawPile().isEmpty()) {
         team.addCardToHand(team.getDrawPile().remove(0));
+      }
+
+      for (BattleBlock bonusCard : team.consumeQueuedNextHandCards()) {
+        team.addCardToHand(bonusCard);
       }
 
       return;
@@ -1151,6 +1617,10 @@ public class GameLogic {
             + getWarpDrawModifier()
             + countBlocksOnBoard(team, BattleBlockIDs.SHULKER_BOX)
             - countBlocksOnBoard(battleState.getOpponentOf(team.getSide()), BattleBlockIDs.SNOW)));
+
+    for (BattleBlock bonusCard : team.consumeQueuedNextHandCards()) {
+      team.addCardToHand(bonusCard);
+    }
   }
 
   private boolean advanceWarpRoundAndMaybeFinishGame(TeamSide activeSide) {
@@ -1238,11 +1708,20 @@ public class GameLogic {
     }
 
     int damageAmount = getPerTurnDamageAmount(placedBlock.battleBlock(), currentTeam)
-        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
 
     if (placedBlock.battleBlock().id == BattleBlockIDs.CRIMSON_NYLIUM
         && countExistingBlocksOnBoard(Classification.OTHERWORLDLY) >= 6) {
       damageAmount += 3;
+    }
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.LAVA) {
+      damageAmount = Math.min(12, 2 + (placedBlock.ownerTurnCount() * 2));
+    }
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.COPPER_GRATE) {
+      damageAmount += getCopperOxidationStage(placedBlock);
     }
 
     if (placedBlock.battleBlock().id == BattleBlockIDs.LAVA
@@ -1277,11 +1756,16 @@ public class GameLogic {
     }
 
     int healingAmount = placedBlock.battleBlock().healing
-        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
 
     if (placedBlock.battleBlock().id == BattleBlockIDs.WARPED_NYLIUM
         && countExistingBlocksOnBoard(Classification.OTHERWORLDLY) >= 6) {
       healingAmount += 3;
+    }
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.COPPER_BULB) {
+      healingAmount += getCopperOxidationStage(placedBlock);
     }
 
     healingAmount *= getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
@@ -1294,7 +1778,13 @@ public class GameLogic {
       return 0;
     }
 
-    int shieldAmount = placedBlock.battleBlock().defence + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    int shieldAmount = placedBlock.battleBlock().defence
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
+
+    if (placedBlock.battleBlock().id == BattleBlockIDs.COPPER_BLOCK) {
+      shieldAmount += getCopperOxidationStage(placedBlock);
+    }
 
     if (placedBlock.battleBlock().id == BattleBlockIDs.END_STONE && isWarpActive(BattleWarp.BED_WARS)) {
       shieldAmount += 3;
@@ -1317,8 +1807,14 @@ public class GameLogic {
       return 0;
     }
 
-    int shieldDamageAmount = placedBlock.battleBlock().defenceDamage + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos());
+    int shieldDamageAmount = placedBlock.battleBlock().defenceDamage
+        + getPodzolStatBonus(currentTeam, placedBlock.level(), placedBlock.pos())
+        - getPaleMossPenalty(placedBlock.level(), placedBlock.pos());
     return shieldDamageAmount * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
+  }
+
+  private int getCopperOxidationStage(PlacedBattleBlock placedBlock) {
+    return Math.min(3, Math.max(0, placedBlock.ownerTurnCount() + 1));
   }
 
   private int applyCarpetModifier(PlacedBattleBlock placedBlock, int amount, BattleBlockIDs carpetId) {
@@ -1377,10 +1873,18 @@ public class GameLogic {
         pos.south(),
         pos.east(),
         pos.west(),
-        pos));
+        pos), true);
   }
 
   private void breakBattleBlockAt(ServerLevel level, BlockPos pos) {
+    breakBattleBlockAt(level, pos, false);
+  }
+
+  private void breakBattleBlockAt(ServerLevel level, BlockPos pos, boolean fromExplosion) {
+    if (fromExplosion && isExplosionProtected(level, pos)) {
+      return;
+    }
+
     OwnedPlacedBattleBlock trackedBlock = findTrackedBlock(level, pos);
 
     if (trackedBlock != null && isUnbreakableBattleBlock(trackedBlock.placedBlock().battleBlock().id)) {
@@ -1403,6 +1907,10 @@ public class GameLogic {
     switch (placedBlock.battleBlock().id) {
       case NETHER_QUARTZ_ORE -> dealImmediateDamage(ownerTeam, enemyTeam, 7);
       case ANCIENT_DEBRIS -> dealImmediateDamage(ownerTeam, enemyTeam, 50);
+      case COAL_BLOCK -> {
+        breakBlocksInCube(placedBlock.level(), placedBlock.pos(), 2, false);
+        dealImmediateDamage(ownerTeam, enemyTeam, 10);
+      }
       default -> {
       }
     }
@@ -1437,9 +1945,10 @@ public class GameLogic {
         }
 
         BattleTeam enemyTeam = battleState.getOpponentOf(team.getSide());
-        applyImmediateShieldGain(team, 4);
-        applyImmediateHealing(team, enemyTeam, 10);
-        dealImmediateDamage(team, enemyTeam, 10);
+        int effectMultiplier = getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock());
+        applyImmediateShieldGain(team, 4 * effectMultiplier);
+        applyImmediateHealing(team, enemyTeam, 10 * effectMultiplier);
+        dealImmediateDamage(team, enemyTeam, 10 * effectMultiplier);
       }
     }
   }
@@ -1455,7 +1964,9 @@ public class GameLogic {
   }
 
   private boolean isUnbreakableBattleBlock(BattleBlockIDs battleBlockId) {
-    return battleBlockId == BattleBlockIDs.ANCIENT_DEBRIS || battleBlockId == BattleBlockIDs.NETHERITE_BLOCK;
+    return battleBlockId == BattleBlockIDs.ANCIENT_DEBRIS
+        || battleBlockId == BattleBlockIDs.NETHERITE_BLOCK
+        || battleBlockId == BattleBlockIDs.BEDROCK;
   }
 
   private void dealImmediateDamage(BattleTeam attackingTeam, BattleTeam defendingTeam, int amount) {
@@ -1504,6 +2015,7 @@ public class GameLogic {
       return;
     }
 
+    triggerChiseledCopper(level, pos);
     triggerCalibratedSculkSensors(level, pos);
     triggerSculkShriekers(level, pos);
     reevaluateActiveWarp(level, pos);
@@ -1534,6 +2046,22 @@ public class GameLogic {
       if (trackedBlock.placedBlock().battleBlock().id == BattleBlockIDs.CALIBRATED_SCULK_SENSOR) {
         dealImmediateDamage(trackedBlock.ownerTeam(), battleState.getOpponentOf(trackedBlock.ownerTeam().getSide()), 5);
       }
+    }
+  }
+
+  private void triggerChiseledCopper(ServerLevel level, BlockPos pos) {
+    for (OwnedPlacedBattleBlock trackedBlock : getTrackedBlocksInCube(level, pos, 1, false)) {
+      if (trackedBlock.placedBlock().battleBlock().id != BattleBlockIDs.CHISELED_COPPER) {
+        continue;
+      }
+
+      int damageAmount = Math.min(3, Math.max(0, trackedBlock.placedBlock().ownerTurnCount())) * 3;
+
+      if (damageAmount > 0) {
+        dealImmediateDamage(trackedBlock.ownerTeam(), battleState.getOpponentOf(trackedBlock.ownerTeam().getSide()), damageAmount);
+      }
+
+      breakBattleBlockAt(level, trackedBlock.placedBlock().pos());
     }
   }
 
@@ -1768,12 +2296,12 @@ public class GameLogic {
       positionsToBreak.add(targetPos.immutable());
     }
 
-    breakBlocksInPositions(level, positionsToBreak);
+    breakBlocksInPositions(level, positionsToBreak, true);
   }
 
-  private void breakBlocksInPositions(ServerLevel level, Iterable<BlockPos> positions) {
+  private void breakBlocksInPositions(ServerLevel level, Iterable<BlockPos> positions, boolean fromExplosion) {
     for (BlockPos targetPos : positions) {
-      breakBattleBlockAt(level, targetPos);
+      breakBattleBlockAt(level, targetPos, fromExplosion);
     }
   }
 
@@ -1799,6 +2327,20 @@ public class GameLogic {
       case GOLD_BLOCK, RAW_GOLD_BLOCK, NETHER_GOLD_ORE, DEEPSLATE_GOLD_ORE -> true;
       default -> false;
     };
+  }
+
+  private boolean isExplosionProtected(ServerLevel level, BlockPos pos) {
+    if (level == null || pos == null) {
+      return false;
+    }
+
+    for (Direction direction : Direction.values()) {
+      if (isBlock(level, pos.relative(direction), BattleBlockIDs.OBSIDIAN)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private OwnedPlacedBattleBlock findTrackedBlock(ServerLevel level, BlockPos pos) {
@@ -1891,10 +2433,10 @@ public class GameLogic {
 
   private int getPlacementsPerTurnForNewTurn() {
     if (isWarpActive(BattleWarp.BLIZZARD)) {
-      return Math.max(1, battleState.getActiveWarpTurnCount() + 1);
+      return Math.max(1, battleState.getActiveWarpTurnCount() + 1 + battleState.getActiveTeam().getActiveTurnExtraPlacements());
     }
 
-    return 1;
+    return Math.max(1, 1 + battleState.getActiveTeam().getActiveTurnExtraPlacements());
   }
 
   private int getBaseHandSizeForNewTurn() {
@@ -1922,6 +2464,10 @@ public class GameLogic {
   }
 
   private int adjustHealingAmount(int amount) {
+    if (isWarpActive(BattleWarp.NIGHT)) {
+      return 0;
+    }
+
     if (isWarpActive(BattleWarp.PALE_GARDEN)) {
       return -amount;
     }
@@ -1956,11 +2502,17 @@ public class GameLogic {
   }
 
   private int getBlockEffectMultiplier(ServerLevel level, BlockPos pos, BattleBlock battleBlock) {
-    if (!isWarpActive(BattleWarp.BASTION) || level == null || pos == null || battleBlock == null) {
-      return 1;
+    int multiplier = 1;
+
+    if (battleBlock != null && isWarpActive(BattleWarp.NIGHT) && isMobHead(battleBlock.id)) {
+      multiplier *= 2;
     }
 
-    return hasAdjacentGoldenBlock(level, pos) ? 2 : 1;
+    if (isWarpActive(BattleWarp.BASTION) && level != null && pos != null && battleBlock != null && hasAdjacentGoldenBlock(level, pos)) {
+      multiplier *= 2;
+    }
+
+    return multiplier;
   }
 
   private boolean hasAdjacentGoldenBlock(ServerLevel level, BlockPos pos) {
@@ -2073,9 +2625,10 @@ public class GameLogic {
 
   private WarpMatch findMatchingWarp(ServerLevel level, BlockPos changedPos) {
     ArrayList<BlockPos> candidatePositions = collectWarpCandidatePositions(level, changedPos);
+    boolean suppressNightWarp = battleState.consumeNightWarpSuppression();
 
     for (BattleWarp warp : BattleWarp.values()) {
-      if (warp == BattleWarp.NONE || warp == BattleWarp.SWAMP) {
+      if (warp == BattleWarp.NONE || warp == BattleWarp.SWAMP || (suppressNightWarp && warp == BattleWarp.NIGHT)) {
         continue;
       }
 
@@ -2151,6 +2704,7 @@ public class GameLogic {
 
   private boolean matchesWarpAt(ServerLevel level, BlockPos pos, BattleWarp warp) {
     return switch (warp) {
+      case NIGHT -> matchesNightWarp(level, pos);
       case VILLAGE_HOUSE -> matchesVillageHouseWarp(level, pos);
       case END -> matchesEndWarp(level, pos);
       case LIBRARY -> matchesLibraryWarp(level, pos);
@@ -2174,6 +2728,34 @@ public class GameLogic {
       case PALE_GARDEN -> matchesPaleGardenWarp(level, pos);
       case NONE, SWAMP -> false;
     };
+  }
+
+  private boolean matchesNightWarp(ServerLevel level, BlockPos pos) {
+    BattleBlockIDs blockId = getBattleBlockId(level, pos);
+
+    if (blockId == null) {
+      return false;
+    }
+
+    if (blockId == BattleBlockIDs.CREEPER_HEAD) {
+      return (hasAdjacent(level, pos, BattleBlockIDs.GRASS_BLOCK) && hasAdjacent(level, pos, BattleBlockIDs.ZOMBIE_HEAD, BattleBlockIDs.SKELETON_SKULL))
+          || (hasAdjacent(level, pos, BattleBlockIDs.ZOMBIE_HEAD) && hasAdjacent(level, pos, BattleBlockIDs.SKELETON_SKULL));
+    }
+
+    if (blockId == BattleBlockIDs.ZOMBIE_HEAD) {
+      return (hasAdjacent(level, pos, BattleBlockIDs.GRASS_BLOCK) && hasAdjacent(level, pos, BattleBlockIDs.CREEPER_HEAD, BattleBlockIDs.SKELETON_SKULL))
+          || (hasAdjacent(level, pos, BattleBlockIDs.CREEPER_HEAD) && hasAdjacent(level, pos, BattleBlockIDs.SKELETON_SKULL));
+    }
+
+    if (blockId == BattleBlockIDs.SKELETON_SKULL) {
+      return (hasAdjacent(level, pos, BattleBlockIDs.GRASS_BLOCK) && hasAdjacent(level, pos, BattleBlockIDs.CREEPER_HEAD, BattleBlockIDs.ZOMBIE_HEAD))
+          || (hasAdjacent(level, pos, BattleBlockIDs.CREEPER_HEAD) && hasAdjacent(level, pos, BattleBlockIDs.ZOMBIE_HEAD));
+    }
+
+    return blockId == BattleBlockIDs.GRASS_BLOCK
+        && ((hasAdjacent(level, pos, BattleBlockIDs.CREEPER_HEAD) && hasAdjacent(level, pos, BattleBlockIDs.ZOMBIE_HEAD))
+            || (hasAdjacent(level, pos, BattleBlockIDs.CREEPER_HEAD) && hasAdjacent(level, pos, BattleBlockIDs.SKELETON_SKULL))
+            || (hasAdjacent(level, pos, BattleBlockIDs.ZOMBIE_HEAD) && hasAdjacent(level, pos, BattleBlockIDs.SKELETON_SKULL)));
   }
 
   private boolean matchesVillageHouseWarp(ServerLevel level, BlockPos pos) {
@@ -2703,6 +3285,9 @@ public class GameLogic {
   }
 
   private record WarpMatch(BattleWarp warp, BlockPos anchorPos) {
+  }
+
+  private record PlacedBlockResolution(BattleBlock boardBlock, BattleBlock effectBlock, List<BattleBlock> storedBlocks) {
   }
 
   private record OwnedPlacedBattleBlock(BattleTeam ownerTeam, PlacedBattleBlock placedBlock) {

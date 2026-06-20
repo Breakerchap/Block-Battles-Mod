@@ -1,5 +1,8 @@
 package com.remy.blockbattles.game.logic;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import com.remy.blockbattles.game.blocks.BattleBlock;
@@ -12,6 +15,7 @@ public final class PlacedBattleBlock {
   private final ServerLevel level;
   private BlockPos pos;
   private final BattleBlock battleBlock;
+  private final ArrayList<BattleBlock> storedBlocks = new ArrayList<>();
   private int ownerTurnCount;
 
   public PlacedBattleBlock(ServerLevel level, BlockPos pos, BattleBlock battleBlock) {
@@ -40,6 +44,28 @@ public final class PlacedBattleBlock {
   public int advanceOwnerTurnCount() {
     ownerTurnCount++;
     return ownerTurnCount;
+  }
+
+  public int ownerTurnCount() {
+    return ownerTurnCount;
+  }
+
+  public void addStoredBlock(BattleBlock storedBlock) {
+    storedBlocks.add(Objects.requireNonNull(storedBlock, "storedBlock"));
+  }
+
+  public void addStoredBlocks(List<BattleBlock> blocks) {
+    for (BattleBlock storedBlock : Objects.requireNonNull(blocks, "blocks")) {
+      addStoredBlock(storedBlock);
+    }
+  }
+
+  public List<BattleBlock> getStoredBlocks() {
+    return Collections.unmodifiableList(storedBlocks);
+  }
+
+  public boolean hasStoredBlocks() {
+    return !storedBlocks.isEmpty();
   }
 
   public void moveTo(BlockPos newPos) {

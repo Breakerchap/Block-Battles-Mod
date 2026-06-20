@@ -24,6 +24,10 @@ public class BattleState {
   private int activeWarpTurnCount;
   private int activeWarpRoundCount;
   private int remainingPlacementsThisTurn = 1;
+  private boolean suppressNightWarpOnce;
+  private BattleBlock lastPlacedBlock;
+  private BattleBlock redLastPlacedBlock;
+  private BattleBlock blueLastPlacedBlock;
 
   private BattleState() {
     redConfiguredDeck.addAll(createRedStartingDeck());
@@ -121,6 +125,34 @@ public class BattleState {
     return remainingPlacementsThisTurn;
   }
 
+  public void suppressNightWarpOnce() {
+    suppressNightWarpOnce = true;
+  }
+
+  public boolean consumeNightWarpSuppression() {
+    boolean suppressed = suppressNightWarpOnce;
+    suppressNightWarpOnce = false;
+    return suppressed;
+  }
+
+  public BattleBlock getLastPlacedBlock() {
+    return lastPlacedBlock;
+  }
+
+  public BattleBlock getLastPlacedBlock(TeamSide side) {
+    return side == TeamSide.RED ? redLastPlacedBlock : blueLastPlacedBlock;
+  }
+
+  public void recordLastPlacedBlock(TeamSide side, BattleBlock battleBlock) {
+    lastPlacedBlock = battleBlock;
+
+    if (side == TeamSide.RED) {
+      redLastPlacedBlock = battleBlock;
+    } else {
+      blueLastPlacedBlock = battleBlock;
+    }
+  }
+
   public BattleTeam getActiveTeam() {
     return getTeam(activeSide);
   }
@@ -175,6 +207,10 @@ public class BattleState {
     activeWarpTurnCount = 0;
     activeWarpRoundCount = 0;
     remainingPlacementsThisTurn = 1;
+    suppressNightWarpOnce = false;
+    lastPlacedBlock = null;
+    redLastPlacedBlock = null;
+    blueLastPlacedBlock = null;
   }
 
   private ArrayList<BattleBlock> getConfiguredDeckList(TeamSide side) {

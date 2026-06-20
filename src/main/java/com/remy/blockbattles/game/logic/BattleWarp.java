@@ -6,6 +6,7 @@ import net.minecraft.resources.Identifier;
 
 public enum BattleWarp {
   NONE("None", null, null),
+  NIGHT("Night Warp", false, "night_warp"),
   VILLAGE_HOUSE("Village House Warp", true, "village_house_warp"),
   END("End Warp", false, "end_warp"),
   LIBRARY("Library Warp", false, "library_warp"),

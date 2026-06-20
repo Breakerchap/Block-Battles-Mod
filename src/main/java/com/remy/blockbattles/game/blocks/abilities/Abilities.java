@@ -26,6 +26,7 @@ public class Abilities {
 
   public static void redTulipAbility(BattleTeam actingTeam) {
     actingTeam.increaseMaxHealth(20);
+    actingTeam.setHealth(actingTeam.getHealth() + 20);
   }
 
   public static void cherryLeavesAbility(BattleTeam actingTeam) {

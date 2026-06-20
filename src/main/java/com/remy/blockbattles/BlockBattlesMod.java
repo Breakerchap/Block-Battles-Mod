@@ -20,13 +20,16 @@ import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.InteractionResult;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +47,28 @@ public class BlockBattlesMod implements ModInitializer {
 
     ServerPlayConnectionEvents.JOIN.register((listener, sender, server) ->
         GAME_LOGIC.syncTrackedBattleBlocks(listener.getPlayer()));
+
+    UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+      if (hand != InteractionHand.MAIN_HAND) {
+        return InteractionResult.PASS;
+      }
+
+      if (!(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) {
+        return InteractionResult.PASS;
+      }
+
+      if (!(level instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+        return InteractionResult.PASS;
+      }
+
+      if (!GAME_LOGIC.isGameRunning()) {
+        return InteractionResult.PASS;
+      }
+
+      return GAME_LOGIC.openStoredBlocksMenu(serverPlayer, serverLevel, hitResult.getBlockPos())
+          ? InteractionResult.SUCCESS
+          : InteractionResult.PASS;
+    });
 
     CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
       registerCommand(dispatcher, "BB");

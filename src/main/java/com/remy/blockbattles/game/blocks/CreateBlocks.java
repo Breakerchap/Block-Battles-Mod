@@ -480,12 +480,12 @@ public class CreateBlocks {
 
   public static final BattleBlock CHEST = block(
       BattleBlockIDs.CHEST, "Chest",
-      "None",
+      "Breaks adjacent Man-made blocks. Enemy ones are destroyed, and your destroyed ones activate for you.",
       0, 0, 0, 0);
 
   public static final BattleBlock TRAPPED_CHEST = block(
       BattleBlockIDs.TRAPPED_CHEST, "Trapped Chest",
-      "None",
+      "Breaks adjacent Man-made blocks. Enemy ones are destroyed, and your friendly ones are stored inside it and suppressed.",
       0, 0, 0, 0);
 
   public static final BattleBlock CAULDRON = block(
@@ -528,7 +528,7 @@ public class CreateBlocks {
 
   public static final BattleBlock LECTERN = block(
       BattleBlockIDs.LECTERN, "Lectern",
-      "Deals +1 damage for each block in your hand.",
+      "Deals +8 damage for each block in your hand.",
       6, 0, 0, 0);
 
   public static final BattleBlock BREWING_STAND = block(
@@ -571,7 +571,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COPPER_TORCH = block(
       BattleBlockIDs.COPPER_TORCH, "Copper Torch",
-      "You take no damage the next time the opponent attacks you.",
+      "You take no damage on the next opponent turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock LIGHTNING_ROD = block(
@@ -625,12 +625,12 @@ public class CreateBlocks {
 
   public static final BattleBlock CHISELED_BOOKSHELF = block(
       BattleBlockIDs.CHISELED_BOOKSHELF, "Chiseled Bookshelf",
-      "None",
+      "Choose 2 battle blocks and add them to your next hand.",
       0, 0, 4, 0);
 
   public static final BattleBlock BOOKSHELF = block(
       BattleBlockIDs.BOOKSHELF, "Bookshelf",
-      "None",
+      "Draw your entire deck as your hand next turn.",
       0, 0, 12, 0);
 
   public static final BattleBlock SHULKER_BOX = block(
@@ -640,7 +640,7 @@ public class CreateBlocks {
 
   public static final BattleBlock VAULT = block(
       BattleBlockIDs.VAULT, "Vault",
-      "Remove this Vault from your deck to gain 8 defence and 8 healing.",
+      "Choose 1 card to permanently remove from your deck. If you do, gain 8 defence and 8 healing.",
       0, 0, 0, 0);
 
   public static final BattleBlock CONDUIT = block(
@@ -678,7 +678,7 @@ public class CreateBlocks {
 
   public static final BattleBlock DEEPSLATE_GOLD_ORE = block(
       BattleBlockIDs.DEEPSLATE_GOLD_ORE, "Deepslate Gold Ore",
-      "None",
+      "Steals half of your opponent's defence, rounded down.",
       0, 0, 0, 0);
 
   public static final BattleBlock DEEPSLATE_REDSTONE_ORE = block(
@@ -696,32 +696,32 @@ public class CreateBlocks {
 
   public static final BattleBlock STONE_BRICKS = block(
       BattleBlockIDs.STONE_BRICKS, "Stone Bricks",
-      "None",
+      "Set your defence to 7.",
       0, 7, 0, 0);
 
   public static final BattleBlock CRACKED_STONE_BRICKS = block(
       BattleBlockIDs.CRACKED_STONE_BRICKS, "Cracked Stone Bricks",
-      "None",
+      "Set your opponent's defence to 0.",
       0, 0, 0, -6);
 
   public static final BattleBlock COBBLESTONE = block(
       BattleBlockIDs.COBBLESTONE, "Cobblestone",
-      "None",
+      "Removes all of your opponent's defence for 2 turns.",
       0, 0, 0, 0);
 
   public static final BattleBlock POLISHED_BLACKSTONE_BRICKS = block(
       BattleBlockIDs.POLISHED_BLACKSTONE_BRICKS, "Polished Blackstone Bricks",
-      "None",
+      "Deals +3 damage for each adjacent block.",
       12, 0, 0, 0);
 
   public static final BattleBlock GLASS = block(
       BattleBlockIDs.GLASS, "Glass",
-      "None",
+      "Copies and places the last placed block.",
       0, 0, 0, 0);
 
   public static final BattleBlock GLASS_PANE = block(
       BattleBlockIDs.GLASS_PANE, "Glass Pane",
-      "None",
+      "Copies and places your opponent's last placed block.",
       0, true,
       0, true,
       0, true,
@@ -729,7 +729,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COAL_BLOCK = block(
       BattleBlockIDs.COAL_BLOCK, "Block of Coal",
-      "None",
+      "If broken, break all blocks within 2 blocks of it and deal 10 damage to your opponent.",
       0, 3, 0, 0);
 
   public static final BattleBlock IRON_BLOCK = block(
@@ -739,12 +739,12 @@ public class CreateBlocks {
 
   public static final BattleBlock GOLD_BLOCK = block(
       BattleBlockIDs.GOLD_BLOCK, "Block of Gold",
-      "None",
+      "Triples your current defence and converts it into max health and current health. It is then replaced by Dirt in your deck and on the board.",
       0, 0, 0, 0);
 
   public static final BattleBlock EMERALD_BLOCK = block(
       BattleBlockIDs.EMERALD_BLOCK, "Block of Emerald",
-      "None",
+      "Next turn, draw 2 more blocks and place 2 blocks total. It is then replaced by Dirt in your deck and on the board.",
       0, -3, -10, 0);
 
   public static final BattleBlock LAPIS_BLOCK = block(
@@ -754,17 +754,17 @@ public class CreateBlocks {
 
   public static final BattleBlock REDSTONE_BLOCK = block(
       BattleBlockIDs.REDSTONE_BLOCK, "Block of Redstone",
-      "None",
+      "Reactivates all adjacent blocks.",
       -20, -5, -20, 0);
 
   public static final BattleBlock DIAMOND_BLOCK = block(
       BattleBlockIDs.DIAMOND_BLOCK, "Block of Diamond",
-      "None",
+      "After placing it, it is replaced by Dirt in your deck and on the board.",
       24, 4, 24, 0);
 
   public static final BattleBlock COPPER_BLOCK = block(
       BattleBlockIDs.COPPER_BLOCK, "Copper Block",
-      "None",
+      "On each of your turns after this one, it oxidises one stage further. Each extra stage gives +1 defence per turn.",
       0, false,
       0, true,
       0, false,
@@ -772,12 +772,12 @@ public class CreateBlocks {
 
   public static final BattleBlock CHISELED_COPPER = block(
       BattleBlockIDs.CHISELED_COPPER, "Chiseled Copper",
-      "None",
+      "On each of your turns after this one, it oxidises one stage further. Each extra stage makes it deal +3 damage when a block is placed next to it, then it breaks.",
       0, 0, 0, 0);
 
   public static final BattleBlock COPPER_GRATE = block(
       BattleBlockIDs.COPPER_GRATE, "Copper Grate",
-      "None",
+      "On each of your turns after this one, it oxidises one stage further. Each extra stage adds +1 per-turn damage.",
       6, true,
       0, false,
       0, false,
@@ -785,7 +785,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COPPER_BULB = block(
       BattleBlockIDs.COPPER_BULB, "Copper Bulb",
-      "None",
+      "On each of your turns after this one, it oxidises one stage further. Each extra stage adds +1 per-turn healing.",
       0, false,
       0, false,
       5, true,
@@ -798,22 +798,22 @@ public class CreateBlocks {
 
   public static final BattleBlock OBSIDIAN = block(
       BattleBlockIDs.OBSIDIAN, "Obsidian",
-      "None",
+      "Makes adjacent blocks immune to explosions.",
       0, 0, 0, 0);
 
   public static final BattleBlock CRYING_OBSIDIAN = block(
       BattleBlockIDs.CRYING_OBSIDIAN, "Crying Obsidian",
-      "None",
+      "Breaks adjacent Otherworldly blocks and stores the friendly ones it broke after activating them.",
       0, 0, 0, 0);
 
   public static final BattleBlock BEDROCK = block(
       BattleBlockIDs.BEDROCK, "Bedrock",
-      "None",
+      "Unbreakable. Miss your next turn.",
       0, 12, 0, 0);
 
   public static final BattleBlock LAVA = block(
       BattleBlockIDs.LAVA, "Lava",
-      "None",
+      "Deals 2 more damage each turn, up to 12.",
       2, true,
       0, false,
       0, false,
@@ -846,12 +846,12 @@ public class CreateBlocks {
 
   public static final BattleBlock RED_BED = block(
       BattleBlockIDs.RED_BED, "Red Bed",
-      "None",
+      "Activate 1 turn of your blocks' per-turn effects when placed. If Night Warp is active, reset it to None.",
       0, 0, 8, 0);
 
   public static final BattleBlock CAKE = block(
       BattleBlockIDs.CAKE, "Cake",
-      "None",
+      "Breaks after 4 turns.",
       -10, false,
       0, false,
       12, true,
@@ -889,12 +889,12 @@ public class CreateBlocks {
 
   public static final BattleBlock PLAYER_HEAD = block(
       BattleBlockIDs.PLAYER_HEAD, "Player Head",
-      "None",
+      "Gives you an extra turn.",
       -8, -2, -10, 0);
 
   public static final BattleBlock CREEPER_HEAD = block(
       BattleBlockIDs.CREEPER_HEAD, "Creeper Head",
-      "None",
+      "Breaks the block beneath it when placed, then after 1 turn explodes for 8 damage and breaks blocks within 1 block.",
       0, 0, 0, 0);
 
   public static final BattleBlock PIGLIN_HEAD = block(
@@ -904,7 +904,7 @@ public class CreateBlocks {
 
   public static final BattleBlock SKELETON_SKULL = block(
       BattleBlockIDs.SKELETON_SKULL, "Skeleton Skull",
-      "None",
+      "Breaks in sunlight after dealing damage.",
       18, true,
       0, false,
       -16, false,
@@ -917,7 +917,7 @@ public class CreateBlocks {
 
   public static final BattleBlock ZOMBIE_HEAD = block(
       BattleBlockIDs.ZOMBIE_HEAD, "Zombie Head",
-      "None",
+      "Breaks in sunlight after dealing damage.",
       14, true,
       0, false,
       0, false,
@@ -933,7 +933,7 @@ public class CreateBlocks {
 
   public static final BattleBlock OAK_PLANKS = block(
       BattleBlockIDs.OAK_PLANKS, "Oak Planks",
-      "None",
+      "Adds 4 Oak Planks to your next hand.",
       0, 0, 0, 0);
 
   public static final BattleBlock RAW_IRON_BLOCK = block(
@@ -961,12 +961,12 @@ public class CreateBlocks {
 
   public static final BattleBlock PALE_MOSS_BLOCK = block(
       BattleBlockIDs.PALE_MOSS_BLOCK, "Pale Moss Block",
-      "None",
+      "Places Pale Moss Carpet on all adjacent blocks.",
       0, 0, 0, 0);
 
   public static final BattleBlock PALE_MOSS_CARPET = block(
       BattleBlockIDs.PALE_MOSS_CARPET, "Pale Moss Carpet",
-      "Unchoosable.",
+      "Unchoosable. Reduces all stats of the block underneath by 2.",
       0, 0, 0, 0);
 
   public static final BattleBlock CREAKING_HEART = block(
