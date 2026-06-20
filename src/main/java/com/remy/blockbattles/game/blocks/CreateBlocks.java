@@ -434,7 +434,7 @@ public class CreateBlocks {
 
   public static final BattleBlock RESPAWN_ANCHOR = block(
       BattleBlockIDs.RESPAWN_ANCHOR, "Respawn Anchor",
-      "None",
+      "Deals 2 damage per turn. With 2 adjacent Glowstone, revive at half health in Nether warps; otherwise it explodes for 5 damage to both teams.",
       2, true,
       0, false,
       0, false,
@@ -475,7 +475,7 @@ public class CreateBlocks {
 
   public static final BattleBlock FURNACE = block(
       BattleBlockIDs.FURNACE, "Furnace",
-      "Gives +1 defence for each block within 1 block.",
+      "Gives +1 defence for each block within 1 block. Adjacent Block of Coal gives +5 defence each turn, and adjacent Campfire gives +6 healing each turn.",
       0, 0, 0, 0);
 
   public static final BattleBlock CHEST = block(
@@ -490,7 +490,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CAULDRON = block(
       BattleBlockIDs.CAULDRON, "Cauldron",
-      "None",
+      "Gives 2 defence per turn. Water above heals 4 each turn. Lava above deals double damage, and Powdered Snow above deals double delayed damage.",
       0, false,
       2, true,
       0, false,
@@ -498,7 +498,7 @@ public class CreateBlocks {
 
   public static final BattleBlock COMPOSTER = block(
       BattleBlockIDs.COMPOSTER, "Composter",
-      "None",
+      "Absorbs adjacent Natural blocks, stores them, and activates their effects for you.",
       0, 0, 0, 0);
 
   public static final BattleBlock ANVIL = block(
@@ -513,7 +513,7 @@ public class CreateBlocks {
 
   public static final BattleBlock STONECUTTER = block(
       BattleBlockIDs.STONECUTTER, "Stonecutter",
-      "None",
+      "Absorbs adjacent Cave blocks, stores them, and activates their effects for you.",
       0, 0, 0, 0);
 
   public static final BattleBlock LOOM = block(
@@ -645,7 +645,7 @@ public class CreateBlocks {
 
   public static final BattleBlock CONDUIT = block(
       BattleBlockIDs.CONDUIT, "Conduit",
-      "None",
+      "Gives 7 defence per turn. With adjacent Water and Prismarine, revive at half health once.",
       0, false,
       0, false,
       7, true,
@@ -653,7 +653,7 @@ public class CreateBlocks {
 
   public static final BattleBlock BEACON = block(
       BattleBlockIDs.BEACON, "Beacon",
-      "None",
+      "On Block of Gold, gain 4 defence. On Block of Emerald, draw 2 extra cards each turn. On Block of Iron, take 1 less damage. On Block of Netherite, nearby blocks cannot be broken.",
       0, 0, 0, 0);
 
   public static final BattleBlock DEEPSLATE = block(

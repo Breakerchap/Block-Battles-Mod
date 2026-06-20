@@ -12,9 +12,9 @@
 
 | Block | Implemented | Ability | Requirements | Combos | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Grass | Yes | N/A | N/A | Missing |  |
-| Dirt (unchoosable) | Yes | N/A | N/A | Missing |  |
-| Mycelium (unchoosable) | Yes | Done | N/A | Missing |  |
+| Grass | Yes | N/A | N/A | Done | Water-to-Farmland, Composter-to-Podzol, Mushroom Stem-to-Mycelium, and the Flower Forest trigger are all implemented. |
+| Dirt (unchoosable) | Yes | N/A | N/A | Done | Adjacent Grass, Podzol, and Mycelium now convert Dirt into the matching block. |
+| Mycelium (unchoosable) | Yes | Done | N/A | Done | Its Grass-spread combo is implemented through the board-state combo resolver. |
 | Podzol (unchoosable) | Yes | Done | N/A | N/A |  |
 | Farmland (unchoosable) | Yes | N/A | N/A | N/A |  |
 | Sand | Yes | N/A | N/A | Missing |  |
@@ -26,7 +26,7 @@
 | Smooth Red Sandstone | Yes | N/A | N/A | N/A |  |
 | Cut Red Sandstone | Yes | N/A | N/A | N/A |  |
 | Chiseled Red Sandstone | Yes | N/A | N/A | N/A |  |
-| Snow | Yes | Done | N/A | Missing |  |
+| Snow | Yes | Done | N/A | Done | Blizzard triggers exist, and the Carved Pumpkin-on-Snow combo now deals the burst damage and clears nearby mob heads. |
 | Powdered Snow | Yes | Done | N/A | N/A |  |
 | Moss Block | Yes | Done | N/A | N/A |  |
 | Dead Bush | Yes | Done | N/A | N/A |  |
@@ -35,53 +35,53 @@
 | Cornflower | Yes | Done | Missing | N/A |  |
 | Pink Petals | Yes | Done | Missing | N/A |  |
 | Torchflower | Yes | Done | Missing | N/A |  |
-| Carved Pumpkin | Yes | Done | N/A | Missing |  |
-| Water | Yes | N/A | N/A | Missing |  |
+| Carved Pumpkin | Yes | Done | N/A | Done | Iron-underneath and Snow-underneath combo behavior are both implemented. |
+| Water | Yes | N/A | N/A | Done | Ocean Warp triggering and Lava-to-Obsidian board conversion are implemented. |
 | Cherry Leaves | Yes | Done | Missing | N/A |  |
 | Cherry Log | Yes | Done | Missing | N/A |  |
 | Jungle Log | Yes | Done | Missing | N/A |  |
-| Horn Coral Block | Yes | N/A | N/A | Missing |  |
-| Tube Coral Block | Yes | N/A | N/A | Missing |  |
-| Bubble Coral Block | Yes | N/A | N/A | Missing |  |
+| Horn Coral Block | Yes | N/A | N/A | Done | Gains its Water-adjacent per-turn bonus and participates in Ocean Warp detection. |
+| Tube Coral Block | Yes | N/A | N/A | Done | Gains its Water-adjacent per-turn bonus and participates in Ocean Warp detection. |
+| Bubble Coral Block | Yes | N/A | N/A | Done | Gains its Water-adjacent per-turn bonus and participates in Ocean Warp detection. |
 | Fire Coral Block | Yes | N/A | N/A | N/A |  |
 | Bubble Coral Fan | Yes | N/A | Missing | N/A |  |
 | Horn Coral Fan | Yes | N/A | Missing | N/A |  |
 | Tube Coral Fan | Yes | N/A | Missing | N/A |  |
-| Prismarine | Yes | N/A | N/A | Missing |  |
-| Netherrack | Yes | Done | N/A | Missing |  |
-| Nether Gold Ore | Yes | Done | N/A | Missing |  |
-| Nether Quartz Ore | Yes | Done | N/A | Missing |  |
+| Prismarine | Yes | N/A | N/A | Done | Its Water-adjacent Ocean Warp trigger is implemented. |
+| Netherrack | Yes | Done | N/A | Done | The Lava / Magma Block / Campfire Nether Warp triggers are implemented. |
+| Nether Gold Ore | Yes | Done | N/A | Partial | Its Bastion and Nether Strip Mine trigger combos are recognized, but Nether Strip Mine still uses the broader adjacency rule noted in the warp section. |
+| Nether Quartz Ore | Yes | Done | N/A | Partial | Its Nether Strip Mine trigger combos are recognized, but Nether Strip Mine still uses the broader adjacency rule noted in the warp section. |
 | Crimson Nylium (unchoosable) | Yes | Done | N/A | N/A |  |
 | Warped Nylium (unchoosable) | Yes | Done | N/A | N/A |  |
-| Crimson Hyphae | Yes | Done | N/A | Missing |  |
-| Warped Hyphae | Yes | Done | N/A | Missing |  |
-| Soul Sand | Yes | Done | N/A | Missing |  |
+| Crimson Hyphae | Yes | Done | N/A | Done | Turns Netherrack beneath it into Crimson Nylium. |
+| Warped Hyphae | Yes | Done | N/A | Done | Turns Netherrack beneath it into Warped Nylium. |
+| Soul Sand | Yes | Done | N/A | Done | Soul Sand Valley Warp trigger combos are implemented. |
 | Glowstone | Yes | N/A | N/A | N/A |  |
 | Candle | Yes | Done | Missing | N/A |  |
-| Magma Block | Yes | N/A | N/A | Missing |  |
-| Soul Torch | Yes | Done | N/A | Missing |  |
-| Soul Lantern | Yes | Done | N/A | Missing |  |
+| Magma Block | Yes | N/A | N/A | Done | The Water-on-top healing combo is implemented. |
+| Soul Torch | Yes | Done | N/A | Done | Soul Sand Valley Warp trigger is implemented. |
+| Soul Lantern | Yes | Done | N/A | Done | Soul Sand Valley Warp trigger is implemented. |
 | Campfire | Yes | Done | N/A | N/A |  |
-| Soul Campfire | Yes | Done | N/A | Missing |  |
+| Soul Campfire | Yes | Done | N/A | Done | Soul Sand Valley Warp trigger is implemented. |
 | Wither Rose | Yes | Done | Missing | N/A |  |
-| Nether Bricks | Yes | N/A | N/A | Missing |  |
-| Respawn Anchor | Yes | N/A | N/A | Missing |  |
+| Nether Bricks | Yes | N/A | N/A | Done | Nether Fortress Warp trigger combos are implemented. |
+| Respawn Anchor | Yes | N/A | N/A | Partial | The 2-Glowstone combo is implemented: it revives at half health in Nether-family warps and explodes outside them, but the revive currently consumes the anchor and the non-Nether explosion deals `5` to both teams. |
 | Ancient Debris | Yes | Done | N/A | N/A |  |
 | Block of Netherite | Yes | Done | N/A | N/A |  |
 | Endstone | Yes | N/A | N/A | N/A |  |
 | End Crystal | Yes | Done | Missing | N/A |  |
-| Dragon Egg | Yes | Done | N/A | Missing |  |
-| Furnace | Yes | Done | N/A | Missing |  |
+| Dragon Egg | Yes | Done | N/A | Done | The Endstone-underneath End Warp trigger is implemented. |
+| Furnace | Yes | Done | N/A | Partial | Adjacent Block of Coal now adds `+5` defence each turn and adjacent Campfire adds `+6` healing each turn, but the block does not literally transform into a Blast Furnace or Smoker. |
 | Chest | Yes | Done | N/A | Missing |  |
 | Trapped Chest | Yes | Done | N/A | Missing | Friendly Man-made blocks are now stored persistently inside the Trapped Chest and can be inspected through its GUI. |
-| Cauldron | Yes | N/A | N/A | Missing |  |
-| Composter | Yes | N/A | N/A | Missing |  |
+| Cauldron | Yes | N/A | N/A | Partial | Water above heals `4` each turn, Lava above doubles Lava damage, and Powdered Snow above doubles its delayed hit, but the Witch Hut warp combo is still missing. |
+| Composter | Yes | N/A | N/A | Partial | Adjacent Natural blocks are now absorbed, stored with GUI inspection, and activated immediately for the Composter owner, but the copied effects are not replayed later as a persistent merged ability set. |
 | Anvil | Yes | Done | N/A | N/A |  |
 | Damaged Anvil | Yes | Done | N/A | N/A |  |
-| Stonecutter | Yes | N/A | N/A | Missing |  |
+| Stonecutter | Yes | N/A | N/A | Partial | Adjacent Cave blocks are now absorbed, stored with GUI inspection, and activated immediately for the Stonecutter owner, but the copied effects are not replayed later as a persistent merged ability set. |
 | Loom | Yes | N/A | N/A | N/A |  |
 | Cartography Table | Yes | N/A | N/A | N/A |  |
-| Lectern | Yes | Done | N/A | Missing |  |
+| Lectern | Yes | Done | N/A | Done | Its Library Warp adjacency trigger is implemented. |
 | Brewing Stand | Yes | Done | N/A | N/A |  |
 | Smithing Table | Yes | Done | N/A | N/A |  |
 | Enchanting Table | Yes | Done | N/A | N/A |  |
@@ -92,73 +92,73 @@
 | Copper Torch | Yes | Done | N/A | N/A | Implemented in the current turn model by canceling all queued incoming damage on the next opponent turn. |
 | Lightning Rod | Yes | N/A | N/A | N/A |  |
 | Dispenser | Yes | Done | N/A | N/A | Spreadsheet typo normalized from `Dspenser`. |
-| Monster Spawner | Yes | Done | N/A | Missing |  |
+| Monster Spawner | Yes | Done | N/A | Done | The Piglin Head Bastion Warp trigger is implemented. |
 | Sculk Sensor | Yes | Done | N/A | Missing |  |
 | Calibrated Sculk Sensor | Yes | Done | N/A | Missing |  |
 | Sculk Shrieker | Yes | Done | N/A | Missing |  |
 | Sculk Catalyst | Yes | Done | N/A | Missing |  |
 | Sculk | Yes | Done | N/A | Missing |  |
-| Chiseled Bookshelf | Yes | Done | N/A | Missing | Players now choose the cards through a GUI instead of receiving random ones. |
-| Bookshelf | Yes | Done | N/A | Missing |  |
-| Shulker Box | Yes | Done | N/A | Missing |  |
+| Chiseled Bookshelf | Yes | Done | N/A | Done | Players now choose the cards through a GUI instead of receiving random ones, and its Library Warp combos are implemented. |
+| Bookshelf | Yes | Done | N/A | Done | Its Library Warp triggers, Village House adjacency, and Enchanting Table discount combo are all implemented. |
+| Shulker Box | Yes | Done | N/A | Done | The Endstone-underneath End Warp trigger is implemented. |
 | Vault | Yes | Done | N/A | N/A | Players now choose which deck card to remove through a GUI before the reward is applied. |
-| Conduit | Yes | N/A | N/A | Missing |  |
-| Beacon | Yes | N/A | N/A | Missing |  |
-| Deepslate | Yes | N/A | N/A | Missing |  |
+| Conduit | Yes | N/A | N/A | Done | The Water + Prismarine revive combo is implemented and currently consumes the Conduit when it revives its owner at half health. |
+| Beacon | Yes | N/A | N/A | Partial | Gold, Emerald, Iron, and Netherite support combos are all implemented, but Iron support currently reduces incoming health/direct damage only, not defence-damage. |
+| Deepslate | Yes | N/A | N/A | Done | Its Lush Cave and Torch-on-top Cave Warp trigger combos are implemented. |
 | Reinforced Deepslate | Yes | Done | N/A | N/A |  |
 | Deepslate Bricks | Yes | Done | N/A | N/A |  |
 | Deepslate Tiles | Yes | N/A | N/A | N/A |  |
-| Deepslate Gold Ore | Yes | Done | N/A | Missing |  |
-| Deepslate Redstone Ore | Yes | N/A | N/A | Missing |  |
+| Deepslate Gold Ore | Yes | Done | N/A | Partial | Its listed warp combos are recognized, but Strip Mine trigger matching still uses the broader adjacency rule noted in the warp section. |
+| Deepslate Redstone Ore | Yes | N/A | N/A | Partial | Its listed warp combos are recognized, but Strip Mine trigger matching still uses the broader adjacency rule noted in the warp section. |
 | Smooth Stone | Yes | N/A | N/A | N/A |  |
 | Stone Bricks | Yes | Done | N/A | N/A |  |
 | Cracked Stone Bricks | Yes | Done | N/A | N/A |  |
 | Cobblestone | Yes | Done | N/A | N/A |  |
-| Polished Blackstone Bricks | Yes | Done | N/A | Missing |  |
+| Polished Blackstone Bricks | Yes | Done | N/A | Partial | The Piglin Head Bastion trigger exists, but the Gold Block-on-top Bastion trigger is still missing. |
 | Glass | Yes | Done | N/A | N/A |  |
 | Glass pane | Yes | Done | N/A | N/A |  |
 | Block of Coal | Yes | Done | N/A | N/A |  |
 | Block of Iron | Yes | N/A | N/A | N/A |  |
-| Block of Gold | Yes | Done | N/A | Missing |  |
+| Block of Gold | Yes | Done | N/A | Done | The Player Head adjacency combo that turns nearby blocks into gold is implemented. |
 | Block of Emerald | Yes | Done | N/A | N/A |  |
 | Block of Lapis Lazuli | Yes | Done | N/A | N/A |  |
-| Block of Redstone | Yes | Done | N/A | Missing |  |
+| Block of Redstone | Yes | Done | N/A | Done | Redstone Torch and Repeater on top both trigger Redstone Warp. |
 | Block of Diamond | Yes | Done | N/A | N/A |  |
 | Copper Block | Yes | Done | N/A | Missing |  |
-| Chiseled Copper | Yes | Done | N/A | Missing |  |
+| Chiseled Copper | Yes | Done | N/A | Done | The Honeycomb Block adjacency combo that stops it breaking on activation is implemented. |
 | Copper Grate | Yes | Done | N/A | N/A |  |
 | Copper Bulb | Yes | Done | N/A | N/A |  |
 | Copper Lantern | Yes | N/A | N/A | N/A |  |
-| Obsidian | Yes | Done | N/A | Missing |  |
+| Obsidian | Yes | Done | N/A | Missing | The Lightning Rod explosion-amplifier combos are still not implemented. |
 | Crying Obsidian | Yes | Partial | N/A | N/A | Friendly broken Otherworldly blocks are now stored persistently and can be viewed through a GUI, but the stored effects are not yet replayed by the Crying Obsidian itself after placement. |
 | Bedrock | Yes | Done | N/A | N/A |  |
-| Lava | Yes | Done | N/A | Missing |  |
+| Lava | Yes | Done | N/A | Done | The Water-adjacent conversion into Obsidian is implemented. |
 | TNT | Yes | Done | N/A | Missing |  |
-| Pointed Dripstone | Yes | Done | N/A | Missing |  |
+| Pointed Dripstone | Yes | Done | N/A | Done | Its Dripstone Cave Warp trigger combos are implemented. |
 | Red Carpet | Yes | Done | N/A | N/A |  |
 | Blue Carpet | Yes | Done | N/A | N/A |  |
 | Green Carpet | Yes | Done | N/A | N/A |  |
-| Red Bed | Yes | Done | N/A | Missing |  |
+| Red Bed | Yes | Done | N/A | Partial | Village House triggers are exact, but the Bed Wars trigger still uses the simplified local check documented in the warp section. |
 | Cake | Yes | Done | N/A | N/A |  |
 | Mushroom Stem | Yes | Done | Missing | N/A |  |
 | Cocoa Beans | Yes | N/A | Missing | N/A |  |
-| Slime Block | Yes | N/A | N/A | Missing |  |
+| Slime Block | Yes | N/A | N/A | Done | Adjacent Slime Block bonus damage is implemented. |
 | Player Head | Yes | Done | N/A | N/A |  |
-| Creeper Head | Yes | Done | N/A | Missing |  |
+| Creeper Head | Yes | Done | N/A | Partial | Its Night Warp combo is implemented, but the Lightning Rod explosion combo is still missing. |
 | Piglin Head | Yes | Done | N/A | N/A |  |
-| Skeleton Skull | Yes | Done | N/A | Missing |  |
+| Skeleton Skull | Yes | Done | N/A | Done | Its Night Warp combos are implemented. |
 | Wither Skeleton Skull | Yes | Done | N/A | N/A |  |
 | Zombie Head | Yes | Done | N/A | N/A |  |
-| Dragon Head | Yes | N/A | Missing | Missing |  |
-| Oak Planks | Yes | Done | N/A | Missing |  |
+| Dragon Head | Yes | N/A | Missing | Done | The Endstone-underneath End Warp trigger is implemented. |
+| Oak Planks | Yes | Done | N/A | Partial | The Bed Wars combo exists, but it still relies on the simplified Bed Wars trigger matcher documented in the warp section. |
 | Block of Raw Iron | Yes | Done | N/A | N/A |  |
 | Block of Raw Gold | Yes | Done | N/A | N/A |  |
 | Block of Raw Copper | Yes | Done | N/A | N/A |  |
 | ??? | No | Missing | N/A | N/A | Placeholder row only; no matching block exists in the codebase. |
-| Pale Oak Log | Yes | Done | Missing | Missing |  |
+| Pale Oak Log | Yes | Done | Missing | Done | The Creaking Heart growth combo is implemented. |
 | Pale Moss Block | Yes | Done | N/A | N/A |  |
 | Pale Moss Carpet (unchoosable) | Yes | Done | N/A | N/A |  |
-| Creaking Heart | Yes | N/A | N/A | Missing |  |
+| Creaking Heart | Yes | N/A | N/A | Done | The Pale Garden Warp trigger is implemented. |
 
 ## Warps
 
