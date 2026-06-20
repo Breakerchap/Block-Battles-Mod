@@ -21,14 +21,18 @@ import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
@@ -38,6 +42,7 @@ public class GameLogic {
   private final BattleState battleState;
   private final DeckManager deckManager;
   private final Random random = new Random();
+  private MinecraftServer lastKnownServer;
 
   private int pendingDamage;
   private int pendingDirectHealthDamage;
@@ -45,6 +50,22 @@ public class GameLogic {
   private int pendingMaxHealthGain;
   private int pendingShieldGain;
   private int pendingShieldDamage;
+
+  private enum FeedbackType {
+    DAMAGE(0xF24040, 0.95F),
+    HEALING(0x4CE673, 1.15F),
+    SHIELD_GAIN(0x40BFF2, 1.10F),
+    SHIELD_LOSS(0xFF8C33, 0.70F),
+    MAX_HEALTH(0xFF73B3, 1.00F);
+
+    private final int color;
+    private final float pitch;
+
+    FeedbackType(int color, float pitch) {
+      this.color = color;
+      this.pitch = pitch;
+    }
+  }
 
   public GameLogic() {
     this(BattleState.shared());
@@ -57,6 +78,12 @@ public class GameLogic {
 
   public boolean isGameRunning() {
     return battleState.isGameRunning();
+  }
+
+  public void rememberServer(MinecraftServer server) {
+    if (server != null) {
+      lastKnownServer = server;
+    }
   }
 
   public BattleWarp getActiveWarp() {
@@ -142,6 +169,10 @@ public class GameLogic {
   }
 
   public boolean onPlaceBattleBlock(String blockId, Level level, BlockPos pos, TeamSide actingSide, ServerPlayer placingPlayer) {
+    if (level instanceof ServerLevel serverLevel) {
+      rememberServer(serverLevel.getServer());
+    }
+
     return CreateBlocks.findByMinecraftId(blockId)
         .map(battleBlock -> {
           if (level instanceof ServerLevel serverLevel) {
@@ -208,14 +239,17 @@ public class GameLogic {
       }
       case RED_TULIP -> {
         for (int i = 0; i < effectMultiplier; i++) {
-          Abilities.redTulipAbility(currentTeam);
+          changeMaxHealth(currentTeam, 20);
+          healWithoutWarp(currentTeam, 20);
         }
       }
       case CORNFLOWER -> {
         queueHealingSource(
             currentTeam,
             scaleAbilityAmount(level, pos, (currentTeam.getHealth() / 4) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case PINK_PETALS -> currentTeam.queueHealingAlsoIncreasesMaxHealth();
       case CARVED_PUMPKIN -> {
@@ -223,17 +257,23 @@ public class GameLogic {
           queueHealingSource(
               currentTeam,
               scaleAbilityAmount(level, pos, countNearbyBlocks(level, pos, 1) * 4 * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
-              true);
+              true,
+              level,
+              pos);
 
           if (isBlock(level, pos.below(), BattleBlockIDs.IRON_BLOCK)) {
             queueShieldSource(
                 currentTeam,
                 scaleAbilityAmount(level, pos, 5 * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
-                true);
+                true,
+                level,
+                pos);
             queueDamageSource(
                 currentTeam,
                 scaleAbilityAmount(level, pos, 4 * effectMultiplier, BattleBlockIDs.RED_CARPET),
-                true);
+                true,
+                level,
+                pos);
           }
 
           if (isBlock(level, pos.below(), BattleBlockIDs.SNOW)) {
@@ -245,7 +285,9 @@ public class GameLogic {
         queueHealingSource(
             currentTeam,
             scaleAbilityAmount(level, pos, (currentTeam.getMaxHealth() / 10) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case MOSS_BLOCK -> {
         if (level != null && pos != null) {
@@ -256,7 +298,9 @@ public class GameLogic {
         queueDamageSource(
             currentTeam,
             scaleAbilityAmount(level, pos, currentTeam.getLastDamageDealt() * effectMultiplier, BattleBlockIDs.RED_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case VAULT -> {
         if (placingPlayer != null) {
@@ -266,13 +310,15 @@ public class GameLogic {
           applyImmediateHealing(currentTeam, enemyTeam, scaleAbilityAmount(level, pos, 8 * effectMultiplier, BattleBlockIDs.GREEN_CARPET));
         }
       }
-      case SCULK -> enemyTeam.increaseMaxHealth(-2 * effectMultiplier);
+      case SCULK -> changeMaxHealth(enemyTeam, -2 * effectMultiplier);
       case BEACON -> {
         if (level != null && pos != null && isBlock(level, pos.below(), BattleBlockIDs.GOLD_BLOCK)) {
           queueShieldSource(
               currentTeam,
               scaleAbilityAmount(level, pos, 4 * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
-              true);
+              true,
+              level,
+              pos);
         }
       }
       case END_CRYSTAL -> {
@@ -286,14 +332,18 @@ public class GameLogic {
           queueShieldSource(
               currentTeam,
               scaleAbilityAmount(level, pos, countNearbyBlocks(level, pos, 1) * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
-              true);
+              true,
+              level,
+              pos);
         }
       }
       case LAPIS_BLOCK -> {
         queueHealingSource(
             currentTeam,
             scaleAbilityAmount(level, pos, ((currentTeam.getHealth() + 1) / 2) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
-            true);
+            true,
+            level,
+            pos);
         replaceOneCardInDeckAndOnBoard(currentTeam, CreateBlocks.LAPIS_BLOCK, level, pos);
         return new PlacedBlockResolution(CreateBlocks.DIRT, battleBlock, List.of());
       }
@@ -301,13 +351,17 @@ public class GameLogic {
         queueDamageSource(
             currentTeam,
             scaleAbilityAmount(level, pos, currentTeam.getShield() * 2 * effectMultiplier, BattleBlockIDs.RED_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case REINFORCED_DEEPSLATE -> {
         queueShieldSource(
             currentTeam,
             scaleAbilityAmount(level, pos, Math.min(currentTeam.getShield(), 10) * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case DEEPSLATE_GOLD_ORE -> {
         int stolenShield = enemyTeam.getShield() / 2;
@@ -315,14 +369,18 @@ public class GameLogic {
         queueShieldSource(
             currentTeam,
             scaleAbilityAmount(level, pos, stolenShield * effectMultiplier, BattleBlockIDs.BLUE_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case WITHER_SKELETON_SKULL -> {
         if (enemyTeam.getShield() > 6) {
           queueDamageSource(
               currentTeam,
               scaleAbilityAmount(level, pos, 8 * effectMultiplier, BattleBlockIDs.RED_CARPET),
-              true);
+              true,
+              level,
+              pos);
         }
       }
       case WITHER_ROSE -> {
@@ -333,11 +391,15 @@ public class GameLogic {
             queueDamageSource(
                 currentTeam,
                 scaleAbilityAmount(level, pos, replacedGrassBlocks * 3 * effectMultiplier, BattleBlockIDs.RED_CARPET),
-                true);
+                true,
+                level,
+                pos);
             queueHealingSource(
                 currentTeam,
                 scaleAbilityAmount(level, pos, replacedGrassBlocks * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
-                true);
+                true,
+                level,
+                pos);
           }
         }
       }
@@ -345,13 +407,17 @@ public class GameLogic {
         queueDamageSource(
             currentTeam,
             scaleAbilityAmount(level, pos, currentTeam.getHandSize() * 8 * effectMultiplier, BattleBlockIDs.RED_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case SMITHING_TABLE -> {
         queueDamageSource(
             currentTeam,
             scaleAbilityAmount(level, pos, countBlocksOnBoard(Classification.MAN_MADE, battleBlock) * effectMultiplier, BattleBlockIDs.RED_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case SOUL_TORCH -> currentTeam.queueTurnHealingBonus(4 * effectMultiplier);
       case REDSTONE_TORCH -> currentTeam.queueTurnDamageBonus(5 * effectMultiplier);
@@ -361,13 +427,17 @@ public class GameLogic {
         queueDamageSource(
             currentTeam,
             scaleAbilityAmount(level, pos, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, BattleBlockIDs.RED_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case WARPED_HYPHAE -> {
         queueHealingSource(
             currentTeam,
             scaleAbilityAmount(level, pos, countBlocksOnBoard(Classification.OTHERWORLDLY, battleBlock) * effectMultiplier, BattleBlockIDs.GREEN_CARPET),
-            true);
+            true,
+            level,
+            pos);
       }
       case RAW_IRON_BLOCK -> currentTeam.queueTurnDamage(30 * effectMultiplier);
       case RAW_GOLD_BLOCK -> currentTeam.queueTurnShieldGain(6 * effectMultiplier);
@@ -404,7 +474,9 @@ public class GameLogic {
           queueDamageSource(
               currentTeam,
               scaleAbilityAmount(level, pos, 8 * effectMultiplier, BattleBlockIDs.RED_CARPET),
-              true);
+              true,
+              level,
+              pos);
         }
       }
       case SOUL_SAND -> enemyTeam.queueTurnDrawModifier(-1 * effectMultiplier);
@@ -427,7 +499,9 @@ public class GameLogic {
           queueDamageSource(
               currentTeam,
               scaleAbilityAmount(level, pos, countAdjacentOccupiedBlocks(level, pos) * 3 * effectMultiplier, BattleBlockIDs.RED_CARPET),
-              true);
+              true,
+              level,
+              pos);
         }
       }
       case GLASS -> {
@@ -453,8 +527,8 @@ public class GameLogic {
 
         int convertedDefence = currentTeam.getShield() * 3 * effectMultiplier;
         currentTeam.setShield(0);
-        currentTeam.increaseMaxHealth(convertedDefence);
-        currentTeam.setHealth(currentTeam.getHealth() + convertedDefence);
+        changeMaxHealth(currentTeam, convertedDefence);
+        healWithoutWarp(currentTeam, convertedDefence);
         replaceOneCardInDeckAndOnBoard(currentTeam, CreateBlocks.GOLD_BLOCK, level, pos);
         return new PlacedBlockResolution(CreateBlocks.DIRT, battleBlock, List.of());
       }
@@ -633,22 +707,22 @@ public class GameLogic {
 
     if (!battleBlock.damagePerTurn && damage != 0) {
       if (battleBlock.id == BattleBlockIDs.SOUL_LANTERN) {
-        queueDirectHealthDamageSource(currentTeam, damage, false);
+        queueDirectHealthDamageSource(currentTeam, damage, false, level, pos);
       } else {
-        queueDamageSource(currentTeam, damage, false);
+        queueDamageSource(currentTeam, damage, false, level, pos);
       }
     }
 
     if (!battleBlock.healingPerTurn && healing != 0) {
-      queueHealingSource(currentTeam, healing, false);
+      queueHealingSource(currentTeam, healing, false, level, pos);
     }
 
     if (!battleBlock.defencePerTurn && shield != 0) {
-      queueShieldSource(currentTeam, shield, false);
+      queueShieldSource(currentTeam, shield, false, level, pos);
     }
 
     if (!battleBlock.defenceDamagePerTurn && shieldDamage != 0) {
-      pendingShieldDamage += adjustShieldDamageAmount(shieldDamage);
+      queueShieldDamageSource(shieldDamage, level, pos);
     }
   }
 
@@ -667,21 +741,53 @@ public class GameLogic {
   }
 
   private void queueDamageSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
+    queueDamageSource(currentTeam, amount, applyBonusEvenWhenZero, null, null);
+  }
+
+  private void queueDamageSource(
+      BattleTeam currentTeam,
+      int amount,
+      boolean applyBonusEvenWhenZero,
+      ServerLevel sourceLevel,
+      BlockPos sourcePos) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      pendingDamage += adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
+      int resolvedAmount = adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
+      pendingDamage += resolvedAmount;
+      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.DAMAGE, resolvedAmount);
     }
   }
 
   private void queueDirectHealthDamageSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
+    queueDirectHealthDamageSource(currentTeam, amount, applyBonusEvenWhenZero, null, null);
+  }
+
+  private void queueDirectHealthDamageSource(
+      BattleTeam currentTeam,
+      int amount,
+      boolean applyBonusEvenWhenZero,
+      ServerLevel sourceLevel,
+      BlockPos sourcePos) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      pendingDirectHealthDamage += adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
+      int resolvedAmount = adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
+      pendingDirectHealthDamage += resolvedAmount;
+      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.DAMAGE, resolvedAmount);
     }
   }
 
   private void queueHealingSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
+    queueHealingSource(currentTeam, amount, applyBonusEvenWhenZero, null, null);
+  }
+
+  private void queueHealingSource(
+      BattleTeam currentTeam,
+      int amount,
+      boolean applyBonusEvenWhenZero,
+      ServerLevel sourceLevel,
+      BlockPos sourcePos) {
     if (amount != 0 || applyBonusEvenWhenZero) {
       int totalHealing = adjustHealingAmount(amount + currentTeam.getActiveTurnHealingBonus());
       pendingHealing += totalHealing;
+      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.HEALING, totalHealing);
 
       if (currentTeam.isActiveHealingAlsoIncreasesMaxHealth() && totalHealing > 0) {
         pendingMaxHealthGain += totalHealing;
@@ -689,14 +795,37 @@ public class GameLogic {
 
       if (isWarpActive(BattleWarp.LUSH_CAVE) && totalHealing > 0) {
         pendingDamage += totalHealing;
+        emitBlockActivation(sourceLevel, sourcePos, FeedbackType.DAMAGE, totalHealing);
       }
     }
   }
 
   private void queueShieldSource(BattleTeam currentTeam, int amount, boolean applyBonusEvenWhenZero) {
+    queueShieldSource(currentTeam, amount, applyBonusEvenWhenZero, null, null);
+  }
+
+  private void queueShieldSource(
+      BattleTeam currentTeam,
+      int amount,
+      boolean applyBonusEvenWhenZero,
+      ServerLevel sourceLevel,
+      BlockPos sourcePos) {
     if (amount != 0 || applyBonusEvenWhenZero) {
-      pendingShieldGain += adjustShieldGainAmount(amount + currentTeam.getActiveTurnShieldBonus());
+      int resolvedAmount = adjustShieldGainAmount(amount + currentTeam.getActiveTurnShieldBonus());
+      pendingShieldGain += resolvedAmount;
+      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.SHIELD_GAIN, resolvedAmount);
     }
+  }
+
+  private void queueShieldDamageSource(int amount, ServerLevel sourceLevel, BlockPos sourcePos) {
+    int resolvedAmount = adjustShieldDamageAmount(amount);
+
+    if (resolvedAmount == 0) {
+      return;
+    }
+
+    pendingShieldDamage += resolvedAmount;
+    emitBlockActivation(sourceLevel, sourcePos, FeedbackType.SHIELD_LOSS, resolvedAmount);
   }
 
   private boolean isBattlePlacement(String blockId) {
@@ -744,26 +873,31 @@ public class GameLogic {
         int damageAmount = getPerTurnDamageAmount(placedBlock, currentTeam);
 
         if (battleBlock.id == BattleBlockIDs.SOUL_CAMPFIRE) {
-          queueDirectHealthDamageSource(currentTeam, damageAmount, false);
+          queueDirectHealthDamageSource(currentTeam, damageAmount, false, placedBlock.level(), placedBlock.pos());
         } else {
-          queueDamageSource(currentTeam, damageAmount, false);
+          queueDamageSource(currentTeam, damageAmount, false, placedBlock.level(), placedBlock.pos());
         }
 
         if (battleBlock.id == BattleBlockIDs.MYCELIUM) {
-          queueHealingSource(currentTeam, Math.max(0, damageAmount - enemyTeam.getShield()), false);
+          queueHealingSource(
+              currentTeam,
+              Math.max(0, damageAmount - enemyTeam.getShield()),
+              false,
+              placedBlock.level(),
+              placedBlock.pos());
         }
       }
 
       if (battleBlock.healingPerTurn) {
-        queueHealingSource(currentTeam, getPerTurnHealingAmount(placedBlock, currentTeam), false);
+        queueHealingSource(currentTeam, getPerTurnHealingAmount(placedBlock, currentTeam), false, placedBlock.level(), placedBlock.pos());
       }
 
       if (battleBlock.defencePerTurn) {
-        queueShieldSource(currentTeam, getPerTurnShieldAmount(placedBlock, currentTeam), false);
+        queueShieldSource(currentTeam, getPerTurnShieldAmount(placedBlock, currentTeam), false, placedBlock.level(), placedBlock.pos());
       }
 
       if (battleBlock.defenceDamagePerTurn) {
-        pendingShieldDamage += adjustShieldDamageAmount(getPerTurnShieldDamageAmount(placedBlock, currentTeam));
+        queueShieldDamageSource(getPerTurnShieldDamageAmount(placedBlock, currentTeam), placedBlock.level(), placedBlock.pos());
       }
 
       applyPerTurnAbility(currentTeam, enemyTeam, placedBlock, grownBlocks);
@@ -786,7 +920,9 @@ public class GameLogic {
           queueDamageSource(
               currentTeam,
               applyCarpetModifier(placedBlock, damageAmount, BattleBlockIDs.RED_CARPET),
-              true);
+              true,
+              placedBlock.level(),
+              placedBlock.pos());
         }
       }
       case FURNACE -> {
@@ -794,14 +930,18 @@ public class GameLogic {
           queueShieldSource(
               currentTeam,
               applyCarpetModifier(placedBlock, 5, BattleBlockIDs.BLUE_CARPET),
-              true);
+              true,
+              placedBlock.level(),
+              placedBlock.pos());
         }
 
         if (hasAdjacent(placedBlock.level(), placedBlock.pos(), BattleBlockIDs.CAMPFIRE)) {
           queueHealingSource(
               currentTeam,
               applyCarpetModifier(placedBlock, 6, BattleBlockIDs.GREEN_CARPET),
-              true);
+              true,
+              placedBlock.level(),
+              placedBlock.pos());
         }
       }
       case CAULDRON -> {
@@ -809,7 +949,9 @@ public class GameLogic {
           queueHealingSource(
               currentTeam,
               applyCarpetModifier(placedBlock, 4, BattleBlockIDs.GREEN_CARPET),
-              true);
+              true,
+              placedBlock.level(),
+              placedBlock.pos());
         }
       }
       case CHERRY_LOG, JUNGLE_LOG, MUSHROOM_STEM -> {
@@ -849,7 +991,7 @@ public class GameLogic {
       }
       case DRAGON_EGG -> {
         if (placedBlock.advanceOwnerTurnCount() >= 2) {
-          queueHealingSource(currentTeam, 32, true);
+          queueHealingSource(currentTeam, 32, true, placedBlock.level(), placedBlock.pos());
           currentTeam.getPlacedBlocks().remove(placedBlock);
           placedBlock.level().setBlock(placedBlock.pos(), Blocks.AIR.defaultBlockState(), 3);
           onAnyBlockBroken(placedBlock.level(), placedBlock.pos());
@@ -871,7 +1013,9 @@ public class GameLogic {
           queueDamageSource(
               currentTeam,
               applyCarpetModifier(placedBlock, 10, BattleBlockIDs.RED_CARPET),
-              true);
+              true,
+              placedBlock.level(),
+              placedBlock.pos());
         }
       }
       case LAVA, COPPER_BLOCK, CHISELED_COPPER, COPPER_GRATE, COPPER_BULB -> placedBlock.advanceOwnerTurnCount();
@@ -889,7 +1033,9 @@ public class GameLogic {
           queueDamageSource(
               currentTeam,
               8 * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock()),
-              true);
+              true,
+              placedBlock.level(),
+              placedBlock.pos());
         }
       }
       case SKELETON_SKULL, ZOMBIE_HEAD -> {
@@ -1101,53 +1247,58 @@ public class GameLogic {
       int damageAmount = getPerTurnDamageAmount(placedBlock, ownerTeam);
 
       if (placedBlock.battleBlock().id == BattleBlockIDs.SOUL_CAMPFIRE) {
-        queueDirectHealthDamageSource(ownerTeam, damageAmount, false);
+        queueDirectHealthDamageSource(ownerTeam, damageAmount, false, placedBlock.level(), placedBlock.pos());
       } else {
-        queueDamageSource(ownerTeam, damageAmount, false);
+        queueDamageSource(ownerTeam, damageAmount, false, placedBlock.level(), placedBlock.pos());
       }
 
       if (placedBlock.battleBlock().id == BattleBlockIDs.MYCELIUM) {
-        queueHealingSource(ownerTeam, Math.max(0, damageAmount - enemyTeam.getShield()), false);
+        queueHealingSource(
+            ownerTeam,
+            Math.max(0, damageAmount - enemyTeam.getShield()),
+            false,
+            placedBlock.level(),
+            placedBlock.pos());
       }
     } else {
       int damageAmount = getImmediateDamageAmount(placedBlock, ownerTeam);
 
       if (damageAmount != 0) {
         if (placedBlock.battleBlock().id == BattleBlockIDs.SOUL_LANTERN) {
-          queueDirectHealthDamageSource(ownerTeam, damageAmount, false);
+          queueDirectHealthDamageSource(ownerTeam, damageAmount, false, placedBlock.level(), placedBlock.pos());
         } else {
-          queueDamageSource(ownerTeam, damageAmount, false);
+          queueDamageSource(ownerTeam, damageAmount, false, placedBlock.level(), placedBlock.pos());
         }
       }
     }
 
     if (placedBlock.battleBlock().healingPerTurn) {
-      queueHealingSource(ownerTeam, getPerTurnHealingAmount(placedBlock, ownerTeam), false);
+      queueHealingSource(ownerTeam, getPerTurnHealingAmount(placedBlock, ownerTeam), false, placedBlock.level(), placedBlock.pos());
     } else {
       int healingAmount = getImmediateHealingAmount(placedBlock, ownerTeam);
 
       if (healingAmount != 0) {
-        queueHealingSource(ownerTeam, healingAmount, false);
+        queueHealingSource(ownerTeam, healingAmount, false, placedBlock.level(), placedBlock.pos());
       }
     }
 
     if (placedBlock.battleBlock().defencePerTurn) {
-      queueShieldSource(ownerTeam, getPerTurnShieldAmount(placedBlock, ownerTeam), false);
+      queueShieldSource(ownerTeam, getPerTurnShieldAmount(placedBlock, ownerTeam), false, placedBlock.level(), placedBlock.pos());
     } else {
       int shieldAmount = getImmediateShieldAmount(placedBlock, ownerTeam);
 
       if (shieldAmount != 0) {
-        queueShieldSource(ownerTeam, shieldAmount, false);
+        queueShieldSource(ownerTeam, shieldAmount, false, placedBlock.level(), placedBlock.pos());
       }
     }
 
     if (placedBlock.battleBlock().defenceDamagePerTurn) {
-      pendingShieldDamage += adjustShieldDamageAmount(getPerTurnShieldDamageAmount(placedBlock, ownerTeam));
+      queueShieldDamageSource(getPerTurnShieldDamageAmount(placedBlock, ownerTeam), placedBlock.level(), placedBlock.pos());
     } else {
       int shieldDamageAmount = getImmediateShieldDamageAmount(placedBlock, ownerTeam);
 
       if (shieldDamageAmount != 0) {
-        pendingShieldDamage += adjustShieldDamageAmount(shieldDamageAmount);
+        queueShieldDamageSource(shieldDamageAmount, placedBlock.level(), placedBlock.pos());
       }
     }
   }
@@ -1510,7 +1661,7 @@ public class GameLogic {
     queueQueuedTurnEffects(currentTeam);
 
     if (pendingMaxHealthGain > 0) {
-      currentTeam.increaseMaxHealth(pendingMaxHealthGain);
+      changeMaxHealth(currentTeam, pendingMaxHealthGain);
     }
 
     applyImmediateHealing(currentTeam, enemyTeam, pendingHealing);
@@ -1529,9 +1680,14 @@ public class GameLogic {
       pendingDamage = 0;
     }
 
+    int shieldBefore = enemyTeam.getShield();
+    int healthBefore = enemyTeam.getHealth();
     actualDamageDealt += enemyTeam.takeHealthDamage(applyBeaconDamageReduction(enemyTeam, pendingDamage));
     actualDamageDealt += enemyTeam.takeDirectHealthDamage(applyBeaconDamageReduction(enemyTeam, pendingDirectHealthDamage));
     enemyTeam.loseShield(pendingShieldDamage);
+    emitStatFeedback(enemyTeam, FeedbackType.SHIELD_LOSS, shieldBefore - enemyTeam.getShield());
+    emitStatFeedback(enemyTeam, FeedbackType.DAMAGE, healthBefore - enemyTeam.getHealth());
+    refreshCombatPresentation();
     tryReviveIfPossible(enemyTeam);
     currentTeam.recordLastDamageDealt(actualDamageDealt);
     enemyTeam.recordLastDamageTakenFromOpponent(actualDamageDealt);
@@ -1593,10 +1749,12 @@ public class GameLogic {
   }
 
   public void syncBattleHands(MinecraftServer server) {
+    rememberServer(server);
     BattleCardItems.syncHands(server, battleState);
   }
 
   public void syncTrackedBattleBlocks(MinecraftServer server) {
+    rememberServer(server);
     BattleBlockOutlinePayload payload = createBattleBlockOutlinePayload();
 
     for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -1605,7 +1763,26 @@ public class GameLogic {
   }
 
   public void syncTrackedBattleBlocks(ServerPlayer player) {
+    rememberServer(player.level().getServer());
     syncTrackedBattleBlocks(player, createBattleBlockOutlinePayload());
+  }
+
+  public void syncBattlePlayerVitals(MinecraftServer server) {
+    rememberServer(server);
+
+    if (!battleState.isGameRunning()) {
+      return;
+    }
+
+    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+      TeamSide side = BattlePlayerTeams.getTeamSide(player).orElse(null);
+
+      if (side == null) {
+        continue;
+      }
+
+      syncBattlePlayerVitals(player, battleState.getTeam(side));
+    }
   }
 
   public void forceTurn(TeamSide side) {
@@ -1631,14 +1808,17 @@ public class GameLogic {
 
   public void setTeamHealth(TeamSide side, int health) {
     battleState.getTeam(side).setHealth(health);
+    refreshCombatPresentation();
   }
 
   public void setTeamMaxHealth(TeamSide side, int maxHealth) {
     battleState.getTeam(side).setMaxHealth(maxHealth);
+    refreshCombatPresentation();
   }
 
   public void setTeamShield(TeamSide side, int shield) {
     battleState.getTeam(side).setShield(shield);
+    refreshCombatPresentation();
   }
 
   public void drawCardsForTeam(TeamSide side, int amount) {
@@ -2110,10 +2290,15 @@ public class GameLogic {
   }
 
   private void dealImmediateDamage(BattleTeam attackingTeam, BattleTeam defendingTeam, int amount) {
+    int shieldBefore = defendingTeam.getShield();
+    int healthBefore = defendingTeam.getHealth();
     int adjustedAmount = applyBeaconDamageReduction(defendingTeam, adjustDamageAmount(amount));
     int actualDamageDealt = shouldIgnoreDefenceForDamage()
         ? defendingTeam.takeDirectHealthDamage(adjustedAmount)
         : defendingTeam.takeHealthDamage(adjustedAmount);
+    emitStatFeedback(defendingTeam, FeedbackType.SHIELD_LOSS, shieldBefore - defendingTeam.getShield());
+    emitStatFeedback(defendingTeam, FeedbackType.DAMAGE, healthBefore - defendingTeam.getHealth());
+    refreshCombatPresentation();
 
     tryReviveIfPossible(defendingTeam);
     attackingTeam.recordLastDamageDealt(actualDamageDealt);
@@ -2185,6 +2370,8 @@ public class GameLogic {
   }
 
   public void onAnyBlockPlaced(ServerLevel level, BlockPos pos) {
+    rememberServer(level.getServer());
+
     if (!battleState.isGameRunning()) {
       return;
     }
@@ -2200,6 +2387,8 @@ public class GameLogic {
   }
 
   public void onAnyBlockBroken(ServerLevel level, BlockPos pos) {
+    rememberServer(level.getServer());
+
     if (!battleState.isGameRunning()) {
       return;
     }
@@ -2938,7 +3127,10 @@ public class GameLogic {
 
   private void applyImmediateHealing(BattleTeam team, BattleTeam enemyTeam, int amount) {
     int adjustedAmount = adjustHealingAmount(amount);
+    int healthBefore = team.getHealth();
     team.heal(adjustedAmount);
+    emitStatFeedback(team, FeedbackType.HEALING, team.getHealth() - healthBefore);
+    refreshCombatPresentation();
 
     if (isWarpActive(BattleWarp.LUSH_CAVE) && adjustedAmount > 0) {
       dealImmediateDamage(team, enemyTeam, adjustedAmount);
@@ -2946,14 +3138,22 @@ public class GameLogic {
   }
 
   private void applyImmediateShieldGain(BattleTeam team, int amount) {
+    int shieldBefore = team.getShield();
     team.gainShield(adjustShieldGainAmount(amount));
+    emitStatFeedback(team, FeedbackType.SHIELD_GAIN, team.getShield() - shieldBefore);
+    refreshCombatPresentation();
   }
 
   private int dealDamageToTeam(BattleTeam team, int amount) {
+    int shieldBefore = team.getShield();
+    int healthBefore = team.getHealth();
     int adjustedAmount = applyBeaconDamageReduction(team, adjustDamageAmount(amount));
     int actualDamageDealt = shouldIgnoreDefenceForDamage()
         ? team.takeDirectHealthDamage(adjustedAmount)
         : team.takeHealthDamage(adjustedAmount);
+    emitStatFeedback(team, FeedbackType.SHIELD_LOSS, shieldBefore - team.getShield());
+    emitStatFeedback(team, FeedbackType.DAMAGE, healthBefore - team.getHealth());
+    refreshCombatPresentation();
 
     tryReviveIfPossible(team);
     return actualDamageDealt;
@@ -3536,13 +3736,13 @@ public class GameLogic {
   }
 
   private void applyFlowerForestBonus(BattleTeam team) {
-    team.increaseMaxHealth(70);
-    team.setHealth(team.getHealth() + 70);
+    changeMaxHealth(team, 70);
+    healWithoutWarp(team, 70);
   }
 
   private void removeFlowerForestBonus(BattleTeam team) {
-    team.setHealth(team.getHealth() - 70);
-    team.increaseMaxHealth(-70);
+    damageTeamDirectly(team, 70);
+    changeMaxHealth(team, -70);
   }
 
   private void placeWarpStructure(ServerLevel level, BlockPos anchorPos, BattleWarp warp) {
@@ -3780,6 +3980,128 @@ public class GameLogic {
         || blockId.equals(BattleBlockIDs.RAW_GOLD_BLOCK.getId())
         || blockId.equals(BattleBlockIDs.NETHER_GOLD_ORE.getId())
         || blockId.equals(BattleBlockIDs.DEEPSLATE_GOLD_ORE.getId());
+  }
+
+  private void changeMaxHealth(BattleTeam team, int amount) {
+    if (amount == 0) {
+      return;
+    }
+
+    int maxHealthBefore = team.getMaxHealth();
+    team.increaseMaxHealth(amount);
+    emitStatFeedback(team, FeedbackType.MAX_HEALTH, team.getMaxHealth() - maxHealthBefore);
+    refreshCombatPresentation();
+  }
+
+  private void healWithoutWarp(BattleTeam team, int amount) {
+    if (amount <= 0) {
+      return;
+    }
+
+    int healthBefore = team.getHealth();
+    team.heal(amount);
+    emitStatFeedback(team, FeedbackType.HEALING, team.getHealth() - healthBefore);
+    refreshCombatPresentation();
+  }
+
+  private void damageTeamDirectly(BattleTeam team, int amount) {
+    if (amount <= 0) {
+      return;
+    }
+
+    int healthBefore = team.getHealth();
+    team.setHealth(team.getHealth() - amount);
+    emitStatFeedback(team, FeedbackType.DAMAGE, healthBefore - team.getHealth());
+    refreshCombatPresentation();
+  }
+
+  private void syncBattlePlayerVitals(ServerPlayer player, BattleTeam team) {
+    float maxPlayerHealth = player.getMaxHealth();
+    float targetHealth = 0.0F;
+
+    if (team.getMaxHealth() > 0) {
+      targetHealth = (team.getHealth() / (float) team.getMaxHealth()) * maxPlayerHealth;
+    }
+
+    if (team.getHealth() > 0) {
+      targetHealth = Math.max(1.0F, targetHealth);
+    }
+
+    player.setHealth(Math.max(0.0F, Math.min(maxPlayerHealth, targetHealth)));
+    player.setAbsorptionAmount(Math.max(0.0F, Math.min(20.0F, team.getShield() / 10.0F)));
+  }
+
+  private void refreshCombatPresentation() {
+    MinecraftServer server = resolveServer();
+
+    if (server == null) {
+      return;
+    }
+
+    syncBattlePlayerVitals(server);
+    BattleScoreboards.updateScoreboard(server, battleState);
+  }
+
+  private void emitStatFeedback(BattleTeam team, FeedbackType type, int amount) {
+    if (team == null || type == null || amount <= 0) {
+      return;
+    }
+  }
+
+  private void emitBlockActivation(ServerLevel level, BlockPos pos, FeedbackType type, int amount) {
+    if (level == null || pos == null || type == null || amount <= 0) {
+      return;
+    }
+
+    spawnBlockActivationParticles(level, pos, type, amount);
+    level.playSound(
+        null,
+        pos,
+        getFeedbackSound(type),
+        SoundSource.BLOCKS,
+        Math.min(2.0F, 0.45F + (amount * 0.04F)),
+        type.pitch);
+  }
+
+  private void spawnBlockActivationParticles(ServerLevel level, BlockPos pos, FeedbackType type, int amount) {
+    int particleCount = Math.min(80, 4 + Math.max(1, amount) * 2);
+    DustParticleOptions particle = new DustParticleOptions(type.color, 1.15F);
+
+    level.sendParticles(
+        particle,
+        pos.getX() + 0.5D,
+        pos.getY() + 1.05D,
+        pos.getZ() + 0.5D,
+        particleCount,
+        0.18D,
+        0.22D,
+        0.18D,
+        0.01D);
+  }
+
+  private SoundEvent getFeedbackSound(FeedbackType type) {
+    return switch (type) {
+      case DAMAGE -> SoundEvents.PLAYER_HURT;
+      case HEALING -> SoundEvents.EXPERIENCE_ORB_PICKUP;
+      case SHIELD_GAIN, SHIELD_LOSS -> SoundEvents.SHIELD_BLOCK.value();
+      case MAX_HEALTH -> SoundEvents.BEACON_POWER_SELECT;
+    };
+  }
+
+  private MinecraftServer resolveServer() {
+    if (lastKnownServer != null) {
+      return lastKnownServer;
+    }
+
+    for (BattleTeam team : List.of(battleState.getRedTeam(), battleState.getBlueTeam())) {
+      for (PlacedBattleBlock placedBlock : team.getPlacedBlocks()) {
+        if (placedBlock.level() != null && placedBlock.level().getServer() != null) {
+          return placedBlock.level().getServer();
+        }
+      }
+    }
+
+    return null;
   }
 
   private record WarpMatch(BattleWarp warp, BlockPos anchorPos) {

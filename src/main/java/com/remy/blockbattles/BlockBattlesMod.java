@@ -50,8 +50,11 @@ public class BlockBattlesMod implements ModInitializer {
     BattleItems.initialize();
     PayloadTypeRegistry.clientboundPlay().register(BattleBlockOutlinePayload.TYPE, BattleBlockOutlinePayload.CODEC);
 
-    ServerPlayConnectionEvents.JOIN.register((listener, sender, server) ->
-        GAME_LOGIC.syncTrackedBattleBlocks(listener.getPlayer()));
+    ServerPlayConnectionEvents.JOIN.register((listener, sender, server) -> {
+      GAME_LOGIC.rememberServer(server);
+      GAME_LOGIC.syncTrackedBattleBlocks(listener.getPlayer());
+      GAME_LOGIC.syncBattlePlayerVitals(server);
+    });
 
     UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
       if (hand != InteractionHand.MAIN_HAND) {
@@ -236,6 +239,7 @@ public class BlockBattlesMod implements ModInitializer {
 
   private static int resetBattle(CommandSourceStack source) {
     BattlePlayerTeams.ensureTeams(source.getServer());
+    GAME_LOGIC.rememberServer(source.getServer());
     GAME_LOGIC.resetBattle();
     refreshBattleUi(source.getServer());
     source.sendSuccess(
@@ -251,6 +255,7 @@ public class BlockBattlesMod implements ModInitializer {
     }
 
     BattlePlayerTeams.ensureTeams(source.getServer());
+    GAME_LOGIC.rememberServer(source.getServer());
     GAME_LOGIC.startGame();
     refreshBattleUi(source.getServer());
     source.sendSuccess(
@@ -265,6 +270,7 @@ public class BlockBattlesMod implements ModInitializer {
       return 0;
     }
 
+    GAME_LOGIC.rememberServer(source.getServer());
     GAME_LOGIC.endGame();
     refreshBattleUi(source.getServer());
     source.sendSuccess(
@@ -327,6 +333,7 @@ public class BlockBattlesMod implements ModInitializer {
       return 0;
     }
 
+    GAME_LOGIC.rememberServer(source.getServer());
     TeamSide skippedSide = BATTLE_STATE.getActiveSide();
 
     GAME_LOGIC.endTurn();
@@ -347,6 +354,7 @@ public class BlockBattlesMod implements ModInitializer {
       return 0;
     }
 
+    GAME_LOGIC.rememberServer(source.getServer());
     GAME_LOGIC.forceTurn(side);
     refreshBattleUi(source.getServer());
 
@@ -361,6 +369,7 @@ public class BlockBattlesMod implements ModInitializer {
       return 0;
     }
 
+    GAME_LOGIC.rememberServer(source.getServer());
     TeamSide activeSide = BATTLE_STATE.getActiveSide();
 
     GAME_LOGIC.redrawActiveHand();
@@ -377,6 +386,7 @@ public class BlockBattlesMod implements ModInitializer {
       return 0;
     }
 
+    GAME_LOGIC.rememberServer(source.getServer());
     GAME_LOGIC.setTeamHealth(side, value);
     BattleScoreboards.updateScoreboard(source.getServer(), BATTLE_STATE);
     source.sendSuccess(
@@ -390,6 +400,7 @@ public class BlockBattlesMod implements ModInitializer {
       return 0;
     }
 
+    GAME_LOGIC.rememberServer(source.getServer());
     GAME_LOGIC.setTeamMaxHealth(side, value);
     BattleScoreboards.updateScoreboard(source.getServer(), BATTLE_STATE);
     source.sendSuccess(
@@ -403,6 +414,7 @@ public class BlockBattlesMod implements ModInitializer {
       return 0;
     }
 
+    GAME_LOGIC.rememberServer(source.getServer());
     GAME_LOGIC.setTeamShield(side, value);
     BattleScoreboards.updateScoreboard(source.getServer(), BATTLE_STATE);
     source.sendSuccess(
@@ -499,8 +511,10 @@ public class BlockBattlesMod implements ModInitializer {
   }
 
   private static void refreshBattleUi(MinecraftServer server) {
+    GAME_LOGIC.rememberServer(server);
     GAME_LOGIC.syncBattleHands(server);
     GAME_LOGIC.syncTrackedBattleBlocks(server);
+    GAME_LOGIC.syncBattlePlayerVitals(server);
     BattleScoreboards.updateScoreboard(server, BATTLE_STATE);
   }
 
