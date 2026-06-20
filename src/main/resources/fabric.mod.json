@@ -3,13 +3,13 @@
     "id":  "blockbattles",
     "version":  "${version}",
     "name":  "Block Battles",
-    "description":  "This is an example description! Tell everyone what your mod is about!",
+    "description":  "Turn-based team PvP built on top of Minecraft block placement, decks, abilities, and warps.",
     "authors":  [
-                    "Me!"
+                    "Remy"
                 ],
     "contact":  {
-                    "homepage":  "https://fabricmc.net/",
-                    "sources":  "https://github.com/FabricMC/fabric-example-mod"
+                    "homepage":  "https://github.com/Remy",
+                    "sources":  "https://github.com/Remy/BlockBattles"
                 },
     "license":  "CC0-1.0",
     "icon":  "assets/blockbattles/icon.png",
@@ -19,7 +19,7 @@
                                      "com.remy.blockbattles.BlockBattlesMod"
                                  ],
                         "client":  [
-                                       "com.example.client.ExampleModClient"
+                                       "com.remy.blockbattles.client.BlockBattlesClient"
                                    ]
                     },
     "mixins":  [

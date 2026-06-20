@@ -75,7 +75,7 @@ public class BlockBattlesMod implements ModInitializer {
       registerCommand(dispatcher, "bb");
     });
 
-    LOGGER.info("Hello Fabric world!");
+    LOGGER.info("Block Battles initialized.");
   }
 
   private static void registerCommand(CommandDispatcher<CommandSourceStack> dispatcher, String commandName) {
