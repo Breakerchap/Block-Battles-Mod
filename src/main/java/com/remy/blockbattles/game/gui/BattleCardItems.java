@@ -155,7 +155,7 @@ public final class BattleCardItems {
     };
   }
 
-  private static Item resolveDisplayItem(BattleBlock battleBlock) {
+  public static Item resolveDisplayItem(BattleBlock battleBlock) {
     Identifier identifier = Identifier.parse(battleBlock.id.getId());
     Item item = BuiltInRegistries.ITEM.get(identifier)
         .map(reference -> reference.value())

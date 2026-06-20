@@ -9,6 +9,7 @@ When a battle is running, players join the Red or Blue team, build a shared 12-c
 - Built for Minecraft `26.2`.
 - Team-based battle flow with Red and Blue teams.
 - Shared team deck builder GUI.
+- In-game encyclopedia GUI for blocks and warps, including combos and implementation status.
 - Turn-restricted block placement while a battle is active.
 - Team-coloured outlines on tracked battle blocks.
 - Active warp system with structure loading and safe missing-structure warnings.
@@ -35,6 +36,8 @@ When a battle is running, players join the Red or Blue team, build a shared 12-c
 - `/BB start`
 - `/BB end`
 - `/BB buildDeck`
+- `/BB encyclopedia`
+- `/BB encyclopedia give`
 - `/BB showScoreboards`
 
 ### Debug Commands
@@ -71,6 +74,17 @@ The deck builder GUI shows every registered battle block and its stats, descript
 - A deck must contain exactly `12` selectable battle blocks to save.
 - The selected deck is pinned at the top of the GUI.
 - Closing the menu without `12` selected cards leaves the previous saved deck unchanged.
+
+## Encyclopedia
+
+Use `/BB encyclopedia` to open a paged in-game reference for both battle blocks and warps.
+
+- The `Blocks` tab shows each block's real item icon, classification, deck status, ability text, requirements, and coloured stats.
+- The `Blocks` tab also shows combo text and tracker status for implementation, abilities, requirements, and combos.
+- The `Warps` tab shows each warp's icon, sunlight rule, structure id, effect summary, combo summary, and implementation status.
+- The encyclopedia can be opened even when a battle is not running.
+- `/BB encyclopedia give` gives you a physical encyclopedia book item that opens the same menu on right-click.
+- You can also give it directly with `/give @s blockbattles:encyclopedia`.
 
 ## Warps
 

@@ -45,6 +45,11 @@ processResources {
 	filesMatching("fabric.mod.json") {
 		expand "version": version
 	}
+
+	from("BLOCK_COMPLETIONISM.md") {
+		into "assets/blockbattles/encyclopedia"
+		rename { "block_completionism.md" }
+	}
 }
 
 tasks.withType(JavaCompile).configureEach {

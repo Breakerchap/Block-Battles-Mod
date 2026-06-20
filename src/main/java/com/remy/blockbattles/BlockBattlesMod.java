@@ -9,7 +9,9 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.remy.blockbattles.game.blocks.BattleBlock;
 import com.remy.blockbattles.game.blocks.CreateBlocks;
+import com.remy.blockbattles.game.gui.BattleCardItems;
 import com.remy.blockbattles.game.gui.BattleDeckBuilderMenu;
+import com.remy.blockbattles.game.gui.BattleEncyclopediaMenu;
 import com.remy.blockbattles.game.gui.BattleScoreboards;
 import com.remy.blockbattles.game.logic.BattlePlayerTeams;
 import com.remy.blockbattles.game.logic.BattleState;
@@ -21,6 +23,7 @@ import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.commands.CommandSourceStack;
@@ -30,6 +33,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.ItemStack;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +47,7 @@ public class BlockBattlesMod implements ModInitializer {
 
   @Override
   public void onInitialize() {
+    BattleItems.initialize();
     PayloadTypeRegistry.clientboundPlay().register(BattleBlockOutlinePayload.TYPE, BattleBlockOutlinePayload.CODEC);
 
     ServerPlayConnectionEvents.JOIN.register((listener, sender, server) ->
@@ -61,6 +66,11 @@ public class BlockBattlesMod implements ModInitializer {
         return InteractionResult.PASS;
       }
 
+      if (serverPlayer.getItemInHand(hand).getItem() == BattleItems.ENCYCLOPEDIA) {
+        openEncyclopediaMenu(serverPlayer);
+        return InteractionResult.SUCCESS;
+      }
+
       if (!GAME_LOGIC.isGameRunning()) {
         return InteractionResult.PASS;
       }
@@ -68,6 +78,20 @@ public class BlockBattlesMod implements ModInitializer {
       return GAME_LOGIC.openStoredBlocksMenu(serverPlayer, serverLevel, hitResult.getBlockPos())
           ? InteractionResult.SUCCESS
           : InteractionResult.PASS;
+    });
+
+    UseItemCallback.EVENT.register((player, level, hand) -> {
+      ItemStack stack = player.getItemInHand(hand);
+
+      if (stack.getItem() != BattleItems.ENCYCLOPEDIA) {
+        return InteractionResult.PASS;
+      }
+
+      if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+        openEncyclopediaMenu(serverPlayer);
+      }
+
+      return InteractionResult.SUCCESS;
     });
 
     CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -93,6 +117,10 @@ public class BlockBattlesMod implements ModInitializer {
             .executes(context -> endGame(context.getSource())))
         .then(Commands.literal("buildDeck")
             .executes(context -> openBuildDeck(context.getSource())))
+        .then(Commands.literal("encyclopedia")
+            .executes(context -> openEncyclopedia(context.getSource()))
+            .then(Commands.literal("give")
+                .executes(context -> giveEncyclopedia(context.getSource()))))
         .then(Commands.literal("debug")
             .then(Commands.literal("skipTurn")
                 .executes(context -> skipCurrentTurn(context.getSource())))
@@ -258,6 +286,40 @@ public class BlockBattlesMod implements ModInitializer {
         (containerId, inventory, menuPlayer) -> new BattleDeckBuilderMenu(containerId, inventory, GAME_LOGIC, teamSide),
         Component.literal(teamSide.getDisplayName() + " Deck Builder")));
     return 1;
+  }
+
+  private static int openEncyclopedia(CommandSourceStack source) throws CommandSyntaxException {
+    var player = source.getPlayerOrException();
+    openEncyclopediaMenu(player);
+    return 1;
+  }
+
+  private static int giveEncyclopedia(CommandSourceStack source) throws CommandSyntaxException {
+    var player = source.getPlayerOrException();
+
+    if (!player.getInventory().add(createEncyclopediaBookStack())) {
+      player.drop(createEncyclopediaBookStack(), false);
+    }
+
+    source.sendSuccess(
+        () -> Component.literal("Encyclopedia book given."),
+        false);
+    return 1;
+  }
+
+  private static void openEncyclopediaMenu(net.minecraft.server.level.ServerPlayer player) {
+    player.openMenu(new SimpleMenuProvider(
+        (containerId, inventory, menuPlayer) -> new BattleEncyclopediaMenu(containerId, inventory),
+        Component.literal("Block Battles Encyclopedia")));
+  }
+
+  private static ItemStack createEncyclopediaBookStack() {
+    return BattleCardItems.createNamedItem(
+        BattleItems.ENCYCLOPEDIA,
+        Component.literal("Block Battles Encyclopedia").withStyle(net.minecraft.ChatFormatting.GOLD),
+        java.util.List.of(
+            Component.literal("Right-click to open the full block and warp reference.").withStyle(net.minecraft.ChatFormatting.GRAY),
+            Component.literal("Includes abilities, combos, requirements, and stats.").withStyle(net.minecraft.ChatFormatting.DARK_AQUA)));
   }
 
   private static int skipCurrentTurn(CommandSourceStack source) {
