@@ -233,7 +233,7 @@ public class GameLogic {
       }
       case TNT -> {
         if (!areExplosionsDisabled() && level != null && pos != null) {
-          breakBlocksAround(level, pos);
+          triggerExplosiveCombo(level, pos, 1, true, true);
           return new PlacedBlockResolution(null, battleBlock, List.of());
         }
       }
@@ -1029,10 +1029,13 @@ public class GameLogic {
       case CREEPER_HEAD -> {
         if (placedBlock.advanceOwnerTurnCount() >= 1) {
           currentTeam.getPlacedBlocks().remove(placedBlock);
-          breakBlocksInCube(placedBlock.level(), placedBlock.pos(), 1, true);
+          triggerExplosiveCombo(placedBlock.level(), placedBlock.pos(), 1, true, true);
           queueDamageSource(
               currentTeam,
-              8 * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock()),
+              getExplosionDamageAmount(
+                  placedBlock.level(),
+                  placedBlock.pos(),
+                  8 * getBlockEffectMultiplier(placedBlock.level(), placedBlock.pos(), placedBlock.battleBlock())),
               true,
               placedBlock.level(),
               placedBlock.pos());
@@ -2194,6 +2197,63 @@ public class GameLogic {
         pos.east(),
         pos.west(),
         pos), true);
+  }
+
+  private void triggerExplosiveCombo(
+      ServerLevel level,
+      BlockPos pos,
+      int baseRadius,
+      boolean includeCenter,
+      boolean crossShapeWhenUnboosted) {
+    if (hasExplosionBoardWipe(level, pos)) {
+      breakAllTrackedBlocks(level);
+      return;
+    }
+
+    if (hasLightningRodExplosionBoost(level, pos)) {
+      breakBlocksInCube(level, pos, Math.max(baseRadius + 1, baseRadius * 2), includeCenter);
+      return;
+    }
+
+    if (crossShapeWhenUnboosted) {
+      breakBlocksAround(level, pos);
+      return;
+    }
+
+    breakBlocksInCube(level, pos, baseRadius, includeCenter);
+  }
+
+  private int getExplosionDamageAmount(ServerLevel level, BlockPos pos, int baseDamage) {
+    if (baseDamage <= 0) {
+      return 0;
+    }
+
+    return hasLightningRodExplosionBoost(level, pos) ? baseDamage * 2 : baseDamage;
+  }
+
+  private boolean hasLightningRodExplosionBoost(ServerLevel level, BlockPos pos) {
+    return level != null
+        && pos != null
+        && isBlock(level, pos.above(), BattleBlockIDs.LIGHTNING_ROD);
+  }
+
+  private boolean hasExplosionBoardWipe(ServerLevel level, BlockPos pos) {
+    return hasLightningRodExplosionBoost(level, pos)
+        && hasAdjacent(level, pos, BattleBlockIDs.REDSTONE_BLOCK);
+  }
+
+  private void breakAllTrackedBlocks(ServerLevel level) {
+    ArrayList<BlockPos> trackedPositions = new ArrayList<>();
+
+    for (BattleTeam team : List.of(battleState.getRedTeam(), battleState.getBlueTeam())) {
+      for (PlacedBattleBlock placedBlock : new ArrayList<>(team.getPlacedBlocks())) {
+        if (placedBlock.level() == level && placedBlock.stillExists()) {
+          trackedPositions.add(placedBlock.pos().immutable());
+        }
+      }
+    }
+
+    breakBlocksInPositions(level, trackedPositions, true);
   }
 
   private void breakBattleBlockAt(ServerLevel level, BlockPos pos) {

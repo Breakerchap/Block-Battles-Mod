@@ -114,7 +114,7 @@
 | Stone Bricks | Yes | Done | N/A | N/A |  |
 | Cracked Stone Bricks | Yes | Done | N/A | N/A |  |
 | Cobblestone | Yes | Done | N/A | N/A |  |
-| Polished Blackstone Bricks | Yes | Done | N/A | Partial | The Piglin Head Bastion trigger exists, but the Gold Block-on-top Bastion trigger is still missing. |
+| Polished Blackstone Bricks | Yes | Done | N/A | Done | Piglin Head and Gold Block Bastion triggers are both implemented. |
 | Glass | Yes | Done | N/A | N/A |  |
 | Glass pane | Yes | Done | N/A | N/A |  |
 | Block of Coal | Yes | Done | N/A | N/A |  |
@@ -129,11 +129,11 @@
 | Copper Grate | Yes | Done | N/A | N/A |  |
 | Copper Bulb | Yes | Done | N/A | N/A |  |
 | Copper Lantern | Yes | N/A | N/A | N/A |  |
-| Obsidian | Yes | Done | N/A | Missing | The Lightning Rod explosion-amplifier combos are still not implemented. |
+| Obsidian | Yes | Done | N/A | Partial | The Lightning Rod + adjacent Redstone board-wipe combo is documented in-game, but only TNT and Creeper Head currently use the Lightning Rod explosion amplification logic directly. |
 | Crying Obsidian | Yes | Partial | N/A | N/A | Friendly broken Otherworldly blocks are now stored persistently and can be viewed through a GUI, but the stored effects are not yet replayed by the Crying Obsidian itself after placement. |
 | Bedrock | Yes | Done | N/A | N/A |  |
 | Lava | Yes | Done | N/A | Done | The Water-adjacent conversion into Obsidian is implemented. |
-| TNT | Yes | Done | N/A | Missing |  |
+| TNT | Yes | Done | N/A | Done | Lightning Rod above now enlarges the blast, and adjacent Redstone Block upgrades it into a tracked-block board wipe. |
 | Pointed Dripstone | Yes | Done | N/A | Done | Its Dripstone Cave Warp trigger combos are implemented. |
 | Red Carpet | Yes | Done | N/A | N/A |  |
 | Blue Carpet | Yes | Done | N/A | N/A |  |
@@ -144,7 +144,7 @@
 | Cocoa Beans | Yes | N/A | Missing | N/A |  |
 | Slime Block | Yes | N/A | N/A | Done | Adjacent Slime Block bonus damage is implemented. |
 | Player Head | Yes | Done | N/A | N/A |  |
-| Creeper Head | Yes | Done | N/A | Partial | Its Night Warp combo is implemented, but the Lightning Rod explosion combo is still missing. |
+| Creeper Head | Yes | Done | N/A | Done | Its Night Warp combo is implemented, and Lightning Rod above now doubles the explosion strength while adjacent Redstone Block upgrades it into a tracked-block board wipe. |
 | Piglin Head | Yes | Done | N/A | N/A |  |
 | Skeleton Skull | Yes | Done | N/A | Done | Its Night Warp combos are implemented. |
 | Wither Skeleton Skull | Yes | Done | N/A | N/A |  |
