@@ -951,13 +951,13 @@ public class CreateBlocks {
       "Heals 26 next turn.",
       0, 0, 0, 0);
 
-  public static final BattleBlock PALE_OAK_LOG = block(
+  public static final BattleBlock PALE_OAK_LOG = requireOnGrassVariants(block(
       BattleBlockIDs.PALE_OAK_LOG, "Pale Oak Log",
-      "None",
+      "Every turn, 1 Pale Oak Log gets placed above it if the block above is air.",
       10, true,
       0, false,
       -5, true,
-      0, false);
+      0, false));
 
   public static final BattleBlock PALE_MOSS_BLOCK = block(
       BattleBlockIDs.PALE_MOSS_BLOCK, "Pale Moss Block",

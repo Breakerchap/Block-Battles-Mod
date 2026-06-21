@@ -38,6 +38,12 @@ public final class PlacedBattleBlock {
 
   public boolean stillExists() {
     String blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock()).toString();
+    if (battleBlock.id == com.remy.blockbattles.game.blocks.BattleBlockIDs.FURNACE) {
+      return blockId.equals(battleBlock.id.getId())
+          || blockId.equals("minecraft:blast_furnace")
+          || blockId.equals("minecraft:smoker");
+    }
+
     return blockId.equals(battleBlock.id.getId());
   }
 

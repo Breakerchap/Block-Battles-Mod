@@ -43,6 +43,13 @@ public class BattleEncyclopediaMenu extends ChestMenu {
           "Healing is prevented, mob head abilities are doubled, and there is no sunlight.",
           "Grass plus any two of Creeper Head, Zombie Head, and Skeleton Skull."),
       new WarpEntry(
+          BattleWarp.TRIAL_CHAMBER,
+          Items.VAULT,
+          ChatFormatting.GOLD,
+          "World",
+          "The trigger is implemented, but the local warp notes never define any extra board rule beyond creating the warp itself.",
+          "Vault on top of Copper Block."),
+      new WarpEntry(
           BattleWarp.VILLAGE_HOUSE,
           Items.CAKE,
           ChatFormatting.GOLD,
@@ -64,12 +71,19 @@ public class BattleEncyclopediaMenu extends ChestMenu {
           "Your hand becomes your entire remaining deck every turn.",
           "Bookshelf, Chiseled Bookshelf, Lectern, and Candle combinations."),
       new WarpEntry(
+          BattleWarp.WITCH_HUT,
+          Items.BREWING_STAND,
+          ChatFormatting.DARK_PURPLE,
+          "Effect-based",
+          "Each round a random Witch Hut effect is chosen. Supported rolls currently include extra draw, double damage, no damage, extra placement, revive at 10 health, deck removal, deck swap, and no sunlight.",
+          "Brewing Stand next to Cauldron, Oak Planks next to Cauldron, or Oak Planks next to Brewing Stand."),
+      new WarpEntry(
           BattleWarp.DEEP_DARK,
           Items.SCULK_SHRIEKER,
           ChatFormatting.DARK_AQUA,
           "No",
-          "Each turn you permanently lose a deck card or take 30 damage if none remain.",
-          "Two different Deep Dark blocks touching, like Sculk Sensor plus Sculk."),
+          "Each turn you permanently lose a deck card or take 30 damage if none remain. Online teams get a choice GUI; no-player cases take the damage penalty instead.",
+          "Any 2 different Deep Dark blocks touching, like Sculk Sensor plus Sculk."),
       new WarpEntry(
           BattleWarp.SOUL_SAND_VALLEY,
           Items.SOUL_LANTERN,
@@ -89,7 +103,7 @@ public class BattleEncyclopediaMenu extends ChestMenu {
           Items.CONDUIT,
           ChatFormatting.AQUA,
           "Yes",
-          "Explosions are disabled, fire blocks are removed, and Grass becomes Farmland.",
+          "Explosions are disabled, fire blocks are removed, and Grass becomes Farmland in the active tracked area.",
           "Water with Coral/Prismarine, or clustered Water."),
       new WarpEntry(
           BattleWarp.REDSTONE,
@@ -125,21 +139,21 @@ public class BattleEncyclopediaMenu extends ChestMenu {
           ChatFormatting.YELLOW,
           "Yes",
           "Teams with less than 2 defence take 20 damage at their turn start.",
-          "Dead Bush/Cactus on Sand, or Sand next to sandstone variants."),
+          "Dead Bush on Sand, or Cactus on Sand with another Sand adjacent."),
       new WarpEntry(
           BattleWarp.STRIP_MINE,
           Items.DEEPSLATE,
           ChatFormatting.GRAY,
           "Yes",
           "All blocks are breakable and both teams draw extra cards.",
-          "Touching strip-mine cave blocks like Deepslate and its ores."),
+          "Deepslate touching Deepslate Gold Ore/Deepslate Redstone Ore, or either ore touching another listed strip-mine block."),
       new WarpEntry(
           BattleWarp.BED_WARS,
           Items.OAK_PLANKS,
           ChatFormatting.RED,
           "Yes",
           "Special bed-fortification blocks get bonuses and beds can revive their owner.",
-          "Red Bed with a strong local defence layout, or End Stone with Oak Planks."),
+          "Red Bed with 8 surrounding Oak Planks or 2 nearby/overhead End Stone, or End Stone with 4 adjacent Oak Planks and another End Stone."),
       new WarpEntry(
           BattleWarp.SWAMP,
           Items.SLIME_BALL,
@@ -159,7 +173,7 @@ public class BattleEncyclopediaMenu extends ChestMenu {
           Items.NETHER_BRICKS,
           ChatFormatting.DARK_RED,
           "No",
-          "Nether rules apply, Nether Bricks become unbreakable, and some Nether Spawner stats are boosted.",
+          "Nether rules apply, Nether Bricks become unbreakable, and Monster Spawner damage/healing scale up by 1.5x.",
           "Spawner on Nether Bricks, or Lava touching Nether Bricks."),
       new WarpEntry(
           BattleWarp.BASTION,
@@ -188,7 +202,7 @@ public class BattleEncyclopediaMenu extends ChestMenu {
           ChatFormatting.GOLD,
           "Yes",
           "Defence gains and defence damage are doubled.",
-          "Dead Bush/Cactus on Red Sand, or Red Sand next to red sandstone variants."),
+          "Dead Bush on Red Sand, Cactus on Red Sand with another Red Sand adjacent, or Red Sand next to Red Sandstone."),
       new WarpEntry(
           BattleWarp.PALE_GARDEN,
           Items.PALE_OAK_LOG,
@@ -496,6 +510,8 @@ public class BattleEncyclopediaMenu extends ChestMenu {
       case GRASS_BLOCK -> "Water turns it into Farmland. Mushroom Stem above it or nearby Mycelium turns it into Mycelium. Nearby Composter turns it into Podzol. Grass with flowers can trigger Flower Forest Warp.";
       case DIRT -> "Adjacent Grass, Podzol, or Mycelium converts it into that matching ground block.";
       case MYCELIUM -> "Spreads onto adjacent Dirt, and Grass with Mushroom Stem above can turn into Mycelium.";
+      case SAND -> "Dead Bush on top triggers Desert Warp. Cactus on top with another Sand adjacent also triggers Desert Warp.";
+      case RED_SAND -> "Dead Bush on top triggers Mesa Warp. Cactus on top with another Red Sand adjacent also triggers Mesa Warp. Adjacent Red Sandstone also triggers Mesa Warp.";
       case DEAD_BUSH -> "On Sand it helps trigger Desert Warp. On Red Sand it helps trigger Mesa Warp.";
       case CACTUS -> "On Sand it helps trigger Desert Warp. On Red Sand it helps trigger Mesa Warp.";
       case CARVED_PUMPKIN -> "On Iron Block it grants extra shield and damage. On Snow it triggers the Snow combo burst and clears nearby mob heads.";
@@ -513,8 +529,8 @@ public class BattleEncyclopediaMenu extends ChestMenu {
       case NETHER_BRICKS -> "With a Spawner above or Lava beside it, it helps trigger Nether Fortress Warp.";
       case RESPAWN_ANCHOR -> "With 2 adjacent Glowstone, it revives you in Nether-family warps or explodes outside them.";
       case END_STONE -> "Dragon Head, Shulker Box, or Dragon Egg on top helps trigger End Warp. In Bed Wars it also gains extra defence per turn.";
-      case FURNACE -> "Adjacent Block of Coal gives +5 defence each turn. Adjacent Campfire gives +6 healing each turn.";
-      case CAULDRON -> "Water above heals each turn. Lava above doubles Lava damage. Powdered Snow above doubles its delayed hit.";
+      case FURNACE -> "Adjacent Block of Coal gives +5 defence each turn and turns it into a Blast Furnace. Adjacent Campfire gives +6 healing each turn and turns it into a Smoker.";
+      case CAULDRON -> "Water above heals each turn. Lava above doubles Lava damage. Powdered Snow above doubles its delayed hit. Brewing Stand or Oak Planks beside it can trigger Witch Hut Warp.";
       case COMPOSTER -> "Nearby Grass becomes Podzol. Adjacent Natural battle blocks are absorbed, stored, and activated for you.";
       case STONECUTTER -> "Adjacent Cave battle blocks are absorbed, stored, and activated for you.";
       case LECTERN, BOOKSHELF, CHISELED_BOOKSHELF, CANDLE -> "Bookshelf, Chiseled Bookshelf, Lectern, and Candle combinations can trigger Library Warp.";
@@ -534,8 +550,9 @@ public class BattleEncyclopediaMenu extends ChestMenu {
       case IRON_BLOCK -> "Under Carved Pumpkin it grants bonus effects. Under Beacon it reduces incoming damage.";
       case EMERALD_BLOCK -> "Under Beacon it grants extra draws each turn.";
       case REDSTONE_BLOCK -> "Redstone Torch or Repeater on top helps trigger Redstone Warp. Next to a Lightning Rod-boosted TNT, Creeper Head, or Obsidian combo it powers the full board wipe.";
+      case COPPER_BLOCK -> "Vault on top of it triggers Trial Chamber Warp.";
       case CHISELED_COPPER -> "Adjacent Honeycomb stops it from breaking after its activation.";
-      case OBSIDIAN -> "Adjacent Lava turns Lava into Obsidian. It protects nearby blocks from explosions and supports Nether Warp or End Crystal placement. A Lightning Rod above it with adjacent Redstone Block powers the board-wipe combo.";
+      case OBSIDIAN -> "Adjacent Lava turns Lava into Obsidian. It protects nearby blocks from explosions and supports Nether Warp or End Crystal placement. A Lightning Rod above it with adjacent Redstone Block now fires the full board-wipe combo.";
       case LAVA -> "Next to Water it becomes Obsidian. On Cauldron it deals double damage. On Netherrack or Obsidian it helps trigger Nether Warp.";
       case TNT -> "Breaks adjacent blocks on placement. A Lightning Rod above it enlarges the blast, and adding adjacent Redstone Block upgrades it into a full tracked-block wipe.";
       case POINTED_DRIPSTONE -> "Next to Deepslate ores it helps trigger Dripstone Cave Warp.";

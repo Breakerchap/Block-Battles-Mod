@@ -141,6 +141,15 @@ public class BattleTeam {
     Collections.shuffle(drawPile);
   }
 
+  public void replaceDeckState(List<BattleBlock> deck, List<BattleBlock> drawPile, List<BattleBlock> hand) {
+    startingDeck.clear();
+    startingDeck.addAll(Objects.requireNonNull(deck, "deck"));
+    this.drawPile.clear();
+    this.drawPile.addAll(Objects.requireNonNull(drawPile, "drawPile"));
+    this.hand.clear();
+    this.hand.addAll(Objects.requireNonNull(hand, "hand"));
+  }
+
   public void clearHand() {
     hand.clear();
   }

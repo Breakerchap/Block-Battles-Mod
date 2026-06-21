@@ -20,6 +20,7 @@ public class BattleState {
   private TeamSide activeSide = TeamSide.RED;
   private boolean gameRunning;
   private BattleWarp activeWarp = BattleWarp.NONE;
+  private WitchHutEffect activeWitchHutEffect = WitchHutEffect.NONE;
   private TeamSide activeWarpStarterSide;
   private int activeWarpTurnCount;
   private int activeWarpRoundCount;
@@ -75,6 +76,14 @@ public class BattleState {
 
   public TeamSide getActiveWarpStarterSide() {
     return activeWarpStarterSide;
+  }
+
+  public WitchHutEffect getActiveWitchHutEffect() {
+    return activeWitchHutEffect;
+  }
+
+  public void setActiveWitchHutEffect(WitchHutEffect activeWitchHutEffect) {
+    this.activeWitchHutEffect = Objects.requireNonNull(activeWitchHutEffect, "activeWitchHutEffect");
   }
 
   public void setActiveWarpStarterSide(TeamSide activeWarpStarterSide) {
@@ -203,6 +212,7 @@ public class BattleState {
     blueTeam.resetForNewBattle(STARTING_HEALTH, STARTING_SHIELD, blueConfiguredDeck);
     activeSide = TeamSide.RED;
     activeWarp = BattleWarp.NONE;
+    activeWitchHutEffect = WitchHutEffect.NONE;
     activeWarpStarterSide = null;
     activeWarpTurnCount = 0;
     activeWarpRoundCount = 0;

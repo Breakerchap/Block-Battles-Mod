@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import com.remy.blockbattles.game.blocks.BattleBlock;
 
@@ -34,6 +35,7 @@ public class BattleAbilityChoiceMenu extends ChestMenu {
   private final Component summaryTitle;
   private final List<Component> summaryLore;
   private final BiConsumer<ServerPlayer, List<BattleBlock>> completionAction;
+  private final Consumer<ServerPlayer> cancelAction;
   private final ArrayList<BattleBlock> selectedBlocks = new ArrayList<>();
 
   private boolean completed;
@@ -50,12 +52,33 @@ public class BattleAbilityChoiceMenu extends ChestMenu {
     this(
         containerId,
         inventory,
+        availableBlocks,
+        selectionLimit,
+        summaryTitle,
+        summaryLore,
+        completionAction,
+        null);
+  }
+
+  public BattleAbilityChoiceMenu(
+      int containerId,
+      Inventory inventory,
+      List<BattleBlock> availableBlocks,
+      int selectionLimit,
+      Component summaryTitle,
+      List<Component> summaryLore,
+      BiConsumer<ServerPlayer, List<BattleBlock>> completionAction,
+      Consumer<ServerPlayer> cancelAction) {
+    this(
+        containerId,
+        inventory,
         new SimpleContainer(MENU_SIZE),
         availableBlocks,
         selectionLimit,
         summaryTitle,
         summaryLore,
-        completionAction);
+        completionAction,
+        cancelAction);
   }
 
   private BattleAbilityChoiceMenu(
@@ -66,7 +89,8 @@ public class BattleAbilityChoiceMenu extends ChestMenu {
       int selectionLimit,
       Component summaryTitle,
       List<Component> summaryLore,
-      BiConsumer<ServerPlayer, List<BattleBlock>> completionAction) {
+      BiConsumer<ServerPlayer, List<BattleBlock>> completionAction,
+      Consumer<ServerPlayer> cancelAction) {
     super(MenuType.GENERIC_9x6, containerId, inventory, container, ROW_COUNT);
     this.container = container;
     this.availableBlocks = List.copyOf(Objects.requireNonNull(availableBlocks, "availableBlocks"));
@@ -74,6 +98,7 @@ public class BattleAbilityChoiceMenu extends ChestMenu {
     this.summaryTitle = Objects.requireNonNull(summaryTitle, "summaryTitle");
     this.summaryLore = List.copyOf(Objects.requireNonNull(summaryLore, "summaryLore"));
     this.completionAction = Objects.requireNonNull(completionAction, "completionAction");
+    this.cancelAction = cancelAction;
     rebuildMenu();
   }
 
@@ -140,6 +165,11 @@ public class BattleAbilityChoiceMenu extends ChestMenu {
     super.removed(player);
 
     if (!completed) {
+      if (cancelAction != null && player instanceof ServerPlayer serverPlayer) {
+        cancelAction.accept(serverPlayer);
+        return;
+      }
+
       player.sendSystemMessage(Component.literal("Choice cancelled."));
     }
   }

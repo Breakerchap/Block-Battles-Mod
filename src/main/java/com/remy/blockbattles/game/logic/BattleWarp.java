@@ -7,9 +7,11 @@ import net.minecraft.resources.Identifier;
 public enum BattleWarp {
   NONE("None", null, null),
   NIGHT("Night Warp", false, "night_warp"),
+  TRIAL_CHAMBER("Trial Chamber Warp", null, "trial_chamber_warp"),
   VILLAGE_HOUSE("Village House Warp", true, "village_house_warp"),
   END("End Warp", false, "end_warp"),
   LIBRARY("Library Warp", false, "library_warp"),
+  WITCH_HUT("Witch Hut Warp", null, "witch_hut_warp"),
   DEEP_DARK("Deep Dark Warp", false, "deep_dark_warp"),
   SOUL_SAND_VALLEY("Soul Sand Valley Warp", false, "soul_sand_valley_warp"),
   BLIZZARD("Blizzard Warp", false, "blizzard_warp"),
