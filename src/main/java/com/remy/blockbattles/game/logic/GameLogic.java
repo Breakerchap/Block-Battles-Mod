@@ -21,16 +21,12 @@ import com.remy.blockbattles.network.BattleBlockOutlinePayload;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DispenserBlock;
@@ -50,22 +46,6 @@ public class GameLogic {
   private int pendingMaxHealthGain;
   private int pendingShieldGain;
   private int pendingShieldDamage;
-
-  private enum FeedbackType {
-    DAMAGE(0xF24040, 0.95F),
-    HEALING(0x4CE673, 1.15F),
-    SHIELD_GAIN(0x40BFF2, 1.10F),
-    SHIELD_LOSS(0xFF8C33, 0.70F),
-    MAX_HEALTH(0xFF73B3, 1.00F);
-
-    private final int color;
-    private final float pitch;
-
-    FeedbackType(int color, float pitch) {
-      this.color = color;
-      this.pitch = pitch;
-    }
-  }
 
   public GameLogic() {
     this(BattleState.shared());
@@ -646,6 +626,8 @@ public class GameLogic {
           new PlacedBattleBlock(level, pos, placementResult.boardBlock())));
     }
 
+    BattleCombatLog.logBlockPlaced(resolveServer(), resolvedActingSide, battleBlock.displayName);
+
     boolean shouldEndTurn = battleState.consumePlacementThisTurn() <= 0;
 
     if (shouldEndTurn) {
@@ -722,7 +704,7 @@ public class GameLogic {
     }
 
     if (!battleBlock.defenceDamagePerTurn && shieldDamage != 0) {
-      queueShieldDamageSource(shieldDamage, level, pos);
+      queueShieldDamageSource(currentTeam, shieldDamage, level, pos);
     }
   }
 
@@ -753,7 +735,7 @@ public class GameLogic {
     if (amount != 0 || applyBonusEvenWhenZero) {
       int resolvedAmount = adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
       pendingDamage += resolvedAmount;
-      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.DAMAGE, resolvedAmount);
+      emitBlockActivation(currentTeam, sourceLevel, sourcePos, BattleFeedbackType.DAMAGE, resolvedAmount);
     }
   }
 
@@ -770,7 +752,7 @@ public class GameLogic {
     if (amount != 0 || applyBonusEvenWhenZero) {
       int resolvedAmount = adjustDamageAmount(amount + currentTeam.getActiveTurnDamageBonus());
       pendingDirectHealthDamage += resolvedAmount;
-      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.DAMAGE, resolvedAmount);
+      emitBlockActivation(currentTeam, sourceLevel, sourcePos, BattleFeedbackType.DAMAGE, resolvedAmount);
     }
   }
 
@@ -787,7 +769,7 @@ public class GameLogic {
     if (amount != 0 || applyBonusEvenWhenZero) {
       int totalHealing = adjustHealingAmount(amount + currentTeam.getActiveTurnHealingBonus());
       pendingHealing += totalHealing;
-      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.HEALING, totalHealing);
+      emitBlockActivation(currentTeam, sourceLevel, sourcePos, BattleFeedbackType.HEALING, totalHealing);
 
       if (currentTeam.isActiveHealingAlsoIncreasesMaxHealth() && totalHealing > 0) {
         pendingMaxHealthGain += totalHealing;
@@ -795,7 +777,7 @@ public class GameLogic {
 
       if (isWarpActive(BattleWarp.LUSH_CAVE) && totalHealing > 0) {
         pendingDamage += totalHealing;
-        emitBlockActivation(sourceLevel, sourcePos, FeedbackType.DAMAGE, totalHealing);
+        emitBlockActivation(currentTeam, sourceLevel, sourcePos, BattleFeedbackType.DAMAGE, totalHealing);
       }
     }
   }
@@ -813,11 +795,11 @@ public class GameLogic {
     if (amount != 0 || applyBonusEvenWhenZero) {
       int resolvedAmount = adjustShieldGainAmount(amount + currentTeam.getActiveTurnShieldBonus());
       pendingShieldGain += resolvedAmount;
-      emitBlockActivation(sourceLevel, sourcePos, FeedbackType.SHIELD_GAIN, resolvedAmount);
+      emitBlockActivation(currentTeam, sourceLevel, sourcePos, BattleFeedbackType.SHIELD_GAIN, resolvedAmount);
     }
   }
 
-  private void queueShieldDamageSource(int amount, ServerLevel sourceLevel, BlockPos sourcePos) {
+  private void queueShieldDamageSource(BattleTeam sourceTeam, int amount, ServerLevel sourceLevel, BlockPos sourcePos) {
     int resolvedAmount = adjustShieldDamageAmount(amount);
 
     if (resolvedAmount == 0) {
@@ -825,7 +807,7 @@ public class GameLogic {
     }
 
     pendingShieldDamage += resolvedAmount;
-    emitBlockActivation(sourceLevel, sourcePos, FeedbackType.SHIELD_LOSS, resolvedAmount);
+    emitBlockActivation(sourceTeam, sourceLevel, sourcePos, BattleFeedbackType.SHIELD_LOSS, resolvedAmount);
   }
 
   private boolean isBattlePlacement(String blockId) {
@@ -897,7 +879,7 @@ public class GameLogic {
       }
 
       if (battleBlock.defenceDamagePerTurn) {
-        queueShieldDamageSource(getPerTurnShieldDamageAmount(placedBlock, currentTeam), placedBlock.level(), placedBlock.pos());
+        queueShieldDamageSource(currentTeam, getPerTurnShieldDamageAmount(placedBlock, currentTeam), placedBlock.level(), placedBlock.pos());
       }
 
       applyPerTurnAbility(currentTeam, enemyTeam, placedBlock, grownBlocks);
@@ -1303,12 +1285,12 @@ public class GameLogic {
     }
 
     if (placedBlock.battleBlock().defenceDamagePerTurn) {
-      queueShieldDamageSource(getPerTurnShieldDamageAmount(placedBlock, ownerTeam), placedBlock.level(), placedBlock.pos());
+      queueShieldDamageSource(ownerTeam, getPerTurnShieldDamageAmount(placedBlock, ownerTeam), placedBlock.level(), placedBlock.pos());
     } else {
       int shieldDamageAmount = getImmediateShieldDamageAmount(placedBlock, ownerTeam);
 
       if (shieldDamageAmount != 0) {
-        queueShieldDamageSource(shieldDamageAmount, placedBlock.level(), placedBlock.pos());
+        queueShieldDamageSource(ownerTeam, shieldDamageAmount, placedBlock.level(), placedBlock.pos());
       }
     }
   }
@@ -1519,16 +1501,6 @@ public class GameLogic {
     return null;
   }
 
-  private void broadcastBattleMessage(Component message) {
-    if (lastKnownServer == null) {
-      return;
-    }
-
-    for (ServerPlayer player : lastKnownServer.getPlayerList().getPlayers()) {
-      player.sendSystemMessage(message);
-    }
-  }
-
   private void swapTeamDeckStates(BattleTeam firstTeam, BattleTeam secondTeam) {
     ArrayList<BattleBlock> firstStartingDeck = new ArrayList<>(firstTeam.getStartingDeck());
     ArrayList<BattleBlock> firstDrawPile = new ArrayList<>(firstTeam.getDrawPile());
@@ -1552,8 +1524,10 @@ public class GameLogic {
       }
       case SWAP_DECKS -> {
         swapTeamDeckStates(redTeam, blueTeam);
-        broadcastBattleMessage(Component.literal("Witch Hut effect: both teams swapped decks.")
-            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE));
+        BattleCombatLog.broadcast(
+            resolveServer(),
+            Component.literal("Witch Hut swapped both teams' decks.")
+                .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE));
       }
       default -> {
       }
@@ -1592,8 +1566,7 @@ public class GameLogic {
     WitchHutEffect newEffect = WitchHutEffect.randomRoll(random);
     battleState.setActiveWitchHutEffect(newEffect);
     applyWitchHutEffectOneTime(newEffect);
-    broadcastBattleMessage(Component.literal("Witch Hut effect: " + newEffect.getDisplayName())
-        .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE));
+    BattleCombatLog.logWitchHutEffect(resolveServer(), newEffect);
 
     if (lastKnownServer != null) {
       syncBattleHands(lastKnownServer);
@@ -1851,8 +1824,8 @@ public class GameLogic {
     actualDamageDealt += enemyTeam.takeHealthDamage(applyBeaconDamageReduction(enemyTeam, pendingDamage));
     actualDamageDealt += enemyTeam.takeDirectHealthDamage(applyBeaconDamageReduction(enemyTeam, pendingDirectHealthDamage));
     enemyTeam.loseShield(applyBeaconDamageReduction(enemyTeam, pendingShieldDamage));
-    emitStatFeedback(enemyTeam, FeedbackType.SHIELD_LOSS, shieldBefore - enemyTeam.getShield());
-    emitStatFeedback(enemyTeam, FeedbackType.DAMAGE, healthBefore - enemyTeam.getHealth());
+    emitStatFeedback(enemyTeam, BattleFeedbackType.SHIELD_LOSS, shieldBefore - enemyTeam.getShield());
+    emitStatFeedback(enemyTeam, BattleFeedbackType.DAMAGE, healthBefore - enemyTeam.getHealth());
     refreshCombatPresentation();
     tryReviveIfPossible(enemyTeam);
     currentTeam.recordLastDamageDealt(actualDamageDealt);
@@ -1868,6 +1841,7 @@ public class GameLogic {
     battleState.setActiveSide(currentTeam.consumeExtraTurn()
         ? resolvedActingSide
         : resolvedActingSide.otherSide());
+    BattleCombatLog.logTurnEnd(resolveServer(), resolvedActingSide, battleState.getActiveSide());
     beginActiveTurn();
   }
 
@@ -1935,20 +1909,7 @@ public class GameLogic {
 
   public void syncBattlePlayerVitals(MinecraftServer server) {
     rememberServer(server);
-
-    if (!battleState.isGameRunning()) {
-      return;
-    }
-
-    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-      TeamSide side = BattlePlayerTeams.getTeamSide(player).orElse(null);
-
-      if (side == null) {
-        continue;
-      }
-
-      syncBattlePlayerVitals(player, battleState.getTeam(side));
-    }
+    BattleFeedback.syncBattlePlayerVitals(server, battleState);
   }
 
   public void forceTurn(TeamSide side) {
@@ -2038,6 +1999,14 @@ public class GameLogic {
     if (battleState.getActiveWarp() != BattleWarp.NONE) {
       battleState.advanceActiveWarpTurnCount();
     }
+
+    BattleCombatLog.logTurnStart(
+        resolveServer(),
+        activeTeam.getSide(),
+        activeTeam.getHandSize(),
+        battleState.getRemainingPlacementsThisTurn(),
+        battleState.getActiveWarp(),
+        battleState.getActiveWitchHutEffect());
   }
 
   private void drawHandForTeam(BattleTeam team) {
@@ -2117,6 +2086,7 @@ public class GameLogic {
     clearPendingEffects();
     battleState.setRemainingPlacementsThisTurn(0);
     battleState.setGameRunning(false);
+    BattleCombatLog.logEndWarpFinish(resolveServer(), losingSide);
   }
 
   private void clearPendingEffects() {
@@ -2528,8 +2498,8 @@ public class GameLogic {
     int actualDamageDealt = shouldIgnoreDefenceForDamage()
         ? defendingTeam.takeDirectHealthDamage(adjustedAmount)
         : defendingTeam.takeHealthDamage(adjustedAmount);
-    emitStatFeedback(defendingTeam, FeedbackType.SHIELD_LOSS, shieldBefore - defendingTeam.getShield());
-    emitStatFeedback(defendingTeam, FeedbackType.DAMAGE, healthBefore - defendingTeam.getHealth());
+    emitStatFeedback(defendingTeam, BattleFeedbackType.SHIELD_LOSS, shieldBefore - defendingTeam.getShield());
+    emitStatFeedback(defendingTeam, BattleFeedbackType.DAMAGE, healthBefore - defendingTeam.getHealth());
     refreshCombatPresentation();
 
     tryReviveIfPossible(defendingTeam);
@@ -3431,7 +3401,7 @@ public class GameLogic {
     int adjustedAmount = adjustHealingAmount(amount);
     int healthBefore = team.getHealth();
     team.heal(adjustedAmount);
-    emitStatFeedback(team, FeedbackType.HEALING, team.getHealth() - healthBefore);
+    emitStatFeedback(team, BattleFeedbackType.HEALING, team.getHealth() - healthBefore);
     refreshCombatPresentation();
 
     if (isWarpActive(BattleWarp.LUSH_CAVE) && adjustedAmount > 0) {
@@ -3442,7 +3412,7 @@ public class GameLogic {
   private void applyImmediateShieldGain(BattleTeam team, int amount) {
     int shieldBefore = team.getShield();
     team.gainShield(adjustShieldGainAmount(amount));
-    emitStatFeedback(team, FeedbackType.SHIELD_GAIN, team.getShield() - shieldBefore);
+    emitStatFeedback(team, BattleFeedbackType.SHIELD_GAIN, team.getShield() - shieldBefore);
     refreshCombatPresentation();
   }
 
@@ -3457,8 +3427,8 @@ public class GameLogic {
     int actualDamageDealt = shouldIgnoreDefenceForDamage()
         ? team.takeDirectHealthDamage(adjustedAmount)
         : team.takeHealthDamage(adjustedAmount);
-    emitStatFeedback(team, FeedbackType.SHIELD_LOSS, shieldBefore - team.getShield());
-    emitStatFeedback(team, FeedbackType.DAMAGE, healthBefore - team.getHealth());
+    emitStatFeedback(team, BattleFeedbackType.SHIELD_LOSS, shieldBefore - team.getShield());
+    emitStatFeedback(team, BattleFeedbackType.DAMAGE, healthBefore - team.getHealth());
     refreshCombatPresentation();
 
     tryReviveIfPossible(team);
@@ -3518,6 +3488,7 @@ public class GameLogic {
     }
 
     team.setHealth(10);
+    BattleCombatLog.logRevive(resolveServer(), team.getSide(), "Witch Hut", team.getHealth());
     return true;
   }
 
@@ -3534,6 +3505,7 @@ public class GameLogic {
       }
 
       team.setHealth(Math.max(1, (team.getMaxHealth() + 1) / 2));
+      BattleCombatLog.logRevive(resolveServer(), team.getSide(), "Respawn Anchor", team.getHealth());
       return true;
     }
 
@@ -3555,6 +3527,7 @@ public class GameLogic {
 
       consumePlacedBlock(team, placedBlock);
       team.setHealth(Math.max(1, (team.getMaxHealth() + 1) / 2));
+      BattleCombatLog.logRevive(resolveServer(), team.getSide(), "Conduit", team.getHealth());
       return true;
     }
 
@@ -3573,6 +3546,7 @@ public class GameLogic {
 
       consumePlacedBlock(team, placedBlock);
       team.setHealth(10);
+      BattleCombatLog.logRevive(resolveServer(), team.getSide(), "Red Bed", team.getHealth());
       return true;
     }
 
@@ -3603,6 +3577,7 @@ public class GameLogic {
     battleState.setActiveWarpStarterSide(starterSide);
     battleState.resetActiveWarpTurnCount();
     battleState.setActiveWarpRoundCount(newWarp == BattleWarp.END && starterSide != null ? 1 : 0);
+    BattleCombatLog.logWarpChange(resolveServer(), previousWarp, newWarp);
 
     if (previousWarp == BattleWarp.FLOWER_FOREST) {
       removeFlowerForestBonus(battleState.getRedTeam());
@@ -4345,7 +4320,7 @@ public class GameLogic {
 
     int maxHealthBefore = team.getMaxHealth();
     team.increaseMaxHealth(amount);
-    emitStatFeedback(team, FeedbackType.MAX_HEALTH, team.getMaxHealth() - maxHealthBefore);
+    emitStatFeedback(team, BattleFeedbackType.MAX_HEALTH, team.getMaxHealth() - maxHealthBefore);
     refreshCombatPresentation();
   }
 
@@ -4356,7 +4331,7 @@ public class GameLogic {
 
     int healthBefore = team.getHealth();
     team.heal(amount);
-    emitStatFeedback(team, FeedbackType.HEALING, team.getHealth() - healthBefore);
+    emitStatFeedback(team, BattleFeedbackType.HEALING, team.getHealth() - healthBefore);
     refreshCombatPresentation();
   }
 
@@ -4367,97 +4342,29 @@ public class GameLogic {
 
     int healthBefore = team.getHealth();
     team.setHealth(team.getHealth() - amount);
-    emitStatFeedback(team, FeedbackType.DAMAGE, healthBefore - team.getHealth());
+    emitStatFeedback(team, BattleFeedbackType.DAMAGE, healthBefore - team.getHealth());
     refreshCombatPresentation();
   }
 
-  private void syncBattlePlayerVitals(ServerPlayer player, BattleTeam team) {
-    float maxPlayerHealth = player.getMaxHealth();
-    float targetHealth = 0.0F;
-
-    if (team.getMaxHealth() > 0) {
-      targetHealth = (team.getHealth() / (float) team.getMaxHealth()) * maxPlayerHealth;
-    }
-
-    if (team.getHealth() > 0) {
-      targetHealth = Math.max(1.0F, targetHealth);
-    }
-
-    player.setHealth(Math.max(0.0F, Math.min(maxPlayerHealth, targetHealth)));
-    player.setAbsorptionAmount(Math.max(0.0F, Math.min(20.0F, team.getShield() / 10.0F)));
-  }
-
   private void refreshCombatPresentation() {
-    MinecraftServer server = resolveServer();
-
-    if (server == null) {
-      return;
-    }
-
-    syncBattlePlayerVitals(server);
-    BattleScoreboards.updateScoreboard(server, battleState);
+    BattleFeedback.refreshCombatPresentation(resolveServer(), battleState);
   }
 
-  private void emitStatFeedback(BattleTeam team, FeedbackType type, int amount) {
-    if (team == null || type == null || amount <= 0) {
-      return;
-    }
+  private void emitStatFeedback(BattleTeam team, BattleFeedbackType type, int amount) {
+    BattleFeedback.emitStatFeedback(resolveServer(), team, type, amount);
   }
 
-  private void emitBlockActivation(ServerLevel level, BlockPos pos, FeedbackType type, int amount) {
-    if (level == null || pos == null || type == null || amount <= 0) {
-      return;
-    }
-
-    spawnBlockActivationParticles(level, pos, type, amount);
-    level.playSound(
-        null,
-        pos,
-        getFeedbackSound(type),
-        SoundSource.BLOCKS,
-        Math.min(2.0F, 0.45F + (amount * 0.04F)),
-        type.pitch);
-  }
-
-  private void spawnBlockActivationParticles(ServerLevel level, BlockPos pos, FeedbackType type, int amount) {
-    int particleCount = Math.min(80, 4 + Math.max(1, amount) * 2);
-    DustParticleOptions particle = new DustParticleOptions(type.color, 1.15F);
-
-    level.sendParticles(
-        particle,
-        pos.getX() + 0.5D,
-        pos.getY() + 1.05D,
-        pos.getZ() + 0.5D,
-        particleCount,
-        0.18D,
-        0.22D,
-        0.18D,
-        0.01D);
-  }
-
-  private SoundEvent getFeedbackSound(FeedbackType type) {
-    return switch (type) {
-      case DAMAGE -> SoundEvents.PLAYER_HURT;
-      case HEALING -> SoundEvents.EXPERIENCE_ORB_PICKUP;
-      case SHIELD_GAIN, SHIELD_LOSS -> SoundEvents.SHIELD_BLOCK.value();
-      case MAX_HEALTH -> SoundEvents.BEACON_POWER_SELECT;
-    };
+  private void emitBlockActivation(
+      BattleTeam sourceTeam,
+      ServerLevel level,
+      BlockPos pos,
+      BattleFeedbackType type,
+      int amount) {
+    BattleFeedback.emitBlockActivation(resolveServer(), sourceTeam, level, pos, type, amount);
   }
 
   private MinecraftServer resolveServer() {
-    if (lastKnownServer != null) {
-      return lastKnownServer;
-    }
-
-    for (BattleTeam team : List.of(battleState.getRedTeam(), battleState.getBlueTeam())) {
-      for (PlacedBattleBlock placedBlock : team.getPlacedBlocks()) {
-        if (placedBlock.level() != null && placedBlock.level().getServer() != null) {
-          return placedBlock.level().getServer();
-        }
-      }
-    }
-
-    return null;
+    return BattleFeedback.resolveServer(battleState, lastKnownServer);
   }
 
   private record WarpMatch(BattleWarp warp, BlockPos anchorPos) {
